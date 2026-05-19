@@ -1,6 +1,6 @@
 /* ===== crop-selector.js ===== */
 /**
- * crop-selector.js â€” Draggable, resizable scan-area box on the camera viewport.
+ * crop-selector.js — Draggable, resizable scan-area box on the camera viewport.
  * Controls which portion of the video frame captureFrame() will crop and send to OCR.
  * Selection is stored as fractions (0-1) of the camera viewport dimensions.
  */
@@ -40,7 +40,7 @@ const CropSelector = (() => {
   }
 
   function _onDown(e) {
-    // Detect double-tap / double-click â†’ reset
+    // Detect double-tap / double-click → reset
     if (dblTapTimer) {
       clearTimeout(dblTapTimer);
       dblTapTimer = null;
@@ -253,7 +253,7 @@ const Store = (() => {
 
 /* ===== admin.js ===== */
 /**
- * admin.js â€” Admin CRUD for Ship To, Keg Size, Brand lists
+ * admin.js — Admin CRUD for Ship To, Keg Size, Brand lists
  */
 const Admin = (() => {
   const tabs = { shipto: 'shipTo', kegsize: 'kegSize', brand: 'brand' };
@@ -324,10 +324,10 @@ const Admin = (() => {
   }
 
   function populateDropdowns() {
-    _fillSelect('ship-to', Store.getList('shipTo'), 'Select destinationâ€¦');
-    _fillSelect('keg-size', Store.getList('kegSize'), 'Select sizeâ€¦');
-    _fillSelect('field-brand', Store.getList('brand'), 'Select brandâ€¦');
-    _fillSelect('field-kegsize', Store.getList('kegSize'), 'Select sizeâ€¦');
+    _fillSelect('ship-to', Store.getList('shipTo'), 'Select destination…');
+    _fillSelect('keg-size', Store.getList('kegSize'), 'Select size…');
+    _fillSelect('field-brand', Store.getList('brand'), 'Select brand…');
+    _fillSelect('field-kegsize', Store.getList('kegSize'), 'Select size…');
   }
 
   function _fillSelect(id, items, placeholder) {
@@ -391,7 +391,7 @@ const Camera = (() => {
     }
 
     console.error('All camera strategies failed');
-    _setStatus('error', 'Camera unavailable â€” check permissions');
+    _setStatus('error', 'Camera unavailable — check permissions');
     _showManualMode();
     return false;
   }
@@ -458,7 +458,7 @@ const Camera = (() => {
     return canvas.toDataURL('image/jpeg', 0.85);
   }
 
-  // â”€â”€â”€ Live quality checker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Live quality checker ──────────────────────────────────────────────────
   // Samples the guide-box area every 600ms and computes the standard deviation
   // of grayscale brightness. High stddev = good contrast = readable ink.
   // Thresholds tuned for dark/brown handwritten ink on metallic keg surface.
@@ -522,9 +522,9 @@ const Camera = (() => {
     const badge = document.getElementById('quality-badge');
     const label = document.getElementById('quality-text');
     if (badge) badge.className = 'quality-badge';
-    if (label) label.textContent = 'â€”';
+    if (label) label.textContent = '—';
   }
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ──────────────────────────────────────────────────────────────────────────
 
   function _showManualMode() {
     const viewport = document.getElementById('camera-viewport');
@@ -537,7 +537,7 @@ const Camera = (() => {
         <div class="fallback-content">
           <span class="fallback-icon">ðŸ“·</span>
           <p>Camera not available</p>
-          <p class="fallback-hint">You can enter keg details manually in the fields panel â†’</p>
+          <p class="fallback-hint">You can enter keg details manually in the fields panel →</p>
           <button class="btn btn-primary btn-sm" id="retry-camera-btn">Retry Camera</button>
         </div>
       `;
@@ -567,7 +567,7 @@ const OCR = (() => {
   let worker = null;
   let ready = false;
 
-  // Azure AI Vision â€” same engine as Power Automate "Extract text from image"
+  // Azure AI Vision — same engine as Power Automate "Extract text from image"
   async function _azureRecognize(canvas) {
     const endpoint = Store.getAzureEndpoint().replace(/\/$/, '');
     const key = Store.getAzureKey();
@@ -607,7 +607,7 @@ const OCR = (() => {
     }
   }
 
-  // PaddleOCR server URL â€” configurable via settings, defaults to localhost when on localhost.
+  // PaddleOCR server URL — configurable via settings, defaults to localhost when on localhost.
   function _getPaddleUrl() {
     const stored = Store.getPaddleUrl();
     if (stored) {
@@ -673,7 +673,7 @@ const OCR = (() => {
   }
 
   /**
-   * Chrome Android's native TextDetector API â€” uses the same ML as Google Lens.
+   * Chrome Android's native TextDetector API — uses the same ML as Google Lens.
    * This is on-device, no server, and much better than Tesseract for printed text.
    * Available in Chrome on Android; not available in Safari/Firefox.
    */
@@ -696,21 +696,21 @@ const OCR = (() => {
 
   async function init() {
     try {
-      Camera.setStatus('reading', 'Loading OCRâ€¦');
+      Camera.setStatus('reading', 'Loading OCR…');
       worker = await Tesseract.createWorker('eng', 1, {
         logger: m => {
           if (m.status === 'recognizing text') {
             const pct = Math.round((m.progress || 0) * 100);
-            Camera.setStatus('reading', `Readingâ€¦ ${pct}%`);
+            Camera.setStatus('reading', `Reading… ${pct}%`);
           }
         }
       });
       await worker.setParameters({
         // PSM 6 = single uniform block of text.
-        // CRITICAL: do NOT use PSM 11 (sparse) on metallic surfaces â€” it reads
+        // CRITICAL: do NOT use PSM 11 (sparse) on metallic surfaces — it reads
         // every scratch and surface mark as a character.
         tessedit_pageseg_mode: '6',
-        // NO character whitelist â€” the LSTM neural network (OEM 1) performs
+        // NO character whitelist — the LSTM neural network (OEM 1) performs
         // worse with a whitelist because it forces incorrect character mapping.
         // Let LSTM output freely then apply OCR corrections in llm.js._fixOCR().
       });
@@ -723,21 +723,21 @@ const OCR = (() => {
   }
 
   /**
-   * forceInvert = undefined â†’ auto-detect (invert when background is dark, mean < 100)
-   * forceInvert = true      â†’ always invert
-   * forceInvert = false     â†’ never invert
+   * forceInvert = undefined → auto-detect (invert when background is dark, mean < 100)
+   * forceInvert = true      → always invert
+   * forceInvert = false     → never invert
    *
-   * Pipeline: 4Ã— upscale â†’ max(R,G,B) grayscale â†’ 3Ã—3 box blur (kills metallic
-   * surface noise) â†’ Otsu's threshold (finds the optimal ink/background split
+   * Pipeline: 4× upscale → max(R,G,B) grayscale → 3×3 box blur (kills metallic
+   * surface noise) → Otsu's threshold (finds the optimal ink/background split
    * automatically per image, giving a clean binary result for Tesseract).
    *
-   * Why this beats the old Ã—2.5 linear contrast:
-   *   Linear contrast leaves mid-tones as gray â€” Tesseract treats gray pixels as
+   * Why this beats the old ×2.5 linear contrast:
+   *   Linear contrast leaves mid-tones as gray — Tesseract treats gray pixels as
    *   ambiguous and guesses wrong characters. Otsu's always produces pure black/white,
    *   which is what Tesseract's LSTM engine is optimised for.
    */
   function _preprocess(src, forceInvert) {
-    const scale = 6; // 6Ã— gives ~48-60px character height â€” better for dot-matrix fonts
+    const scale = 6; // 6× gives ~48-60px character height — better for dot-matrix fonts
     const W = src.width * scale;
     const H = src.height * scale;
     const dst = document.createElement('canvas');
@@ -750,7 +750,7 @@ const OCR = (() => {
     const d = imgData.data;
     const n = W * H;
 
-    // Pass 1: max(R,G,B) grayscale â€” preserves ink contrast on green and silver kegs
+    // Pass 1: max(R,G,B) grayscale — preserves ink contrast on green and silver kegs
     const gray = new Uint8Array(n);
     let sum = 0;
     for (let i = 0; i < n; i++) {
@@ -758,7 +758,7 @@ const OCR = (() => {
       sum += gray[i];
     }
 
-    // Use mid-range pixels (20â€“200) to decide invert so that the very dark keg
+    // Use mid-range pixels (20–200) to decide invert so that the very dark keg
     // ring shadow (brightness < 20) doesn't pull the mean below 100 and trigger
     // a false invert on a normal silver-background label.
     // Include pixels up to 240 (not just 200) so bright keg body pixels are counted.
@@ -779,8 +779,8 @@ const OCR = (() => {
       for (let i = 0; i < n; i++) gray[i] = 255 - gray[i];
     }
 
-    // Pass 2: 3Ã—3 box blur â€” smooths metallic surface scratches and specular
-    // highlights that the old Ã—2.5 boost was amplifying into false characters
+    // Pass 2: 3×3 box blur — smooths metallic surface scratches and specular
+    // highlights that the old ×2.5 boost was amplifying into false characters
     const smooth = new Uint8Array(n);
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
@@ -800,12 +800,12 @@ const OCR = (() => {
     // Pass 3: Bradley's local adaptive threshold with keg-edge column exclusion.
     //
     // Global thresholding (Otsu, per-row) fails on cylindrical keg labels because
-    // the label centre is darker than its edges due to the curvature â€” the bright
+    // the label centre is darker than its edges due to the curvature — the bright
     // edges set a global threshold that blacks out the dimmer centre background.
     // Bradley's computes a per-pixel threshold from its local neighbourhood mean,
     // so each region calibrates independently regardless of global illumination.
     //
-    // Column mean < 40 â†’ permanently dark keg-ring-shadow column â†’ forced WHITE.
+    // Column mean < 40 → permanently dark keg-ring-shadow column → forced WHITE.
     const colMean = new Float32Array(W);
     for (let y = 0; y < H; y++) {
       const base = y * W;
@@ -891,7 +891,7 @@ const OCR = (() => {
     // MEAN_MAX raised to 250: white/cream label backgrounds can have row mean
     // up to ~230 on bright text rows; 210 falsely excluded them.
     // Bright background-only rows also have low contrast (<12) so they're
-    // already excluded by TEXT_THRESH â€” MEAN_MAX is just a safety cap.
+    // already excluded by TEXT_THRESH — MEAN_MAX is just a safety cap.
     const TEXT_THRESH = 12;
     const MEAN_MIN   = 35;
     const MEAN_MAX   = 250;
@@ -963,7 +963,7 @@ const OCR = (() => {
     // Walk the contrast profile and collect contiguous high-contrast bands.
     // Same mean-brightness gate as _findLabelCrop to skip ring shadow / keg body rows.
     // Raised to 18 (from 12): background label rows between text lines have
-    // contrast ~12â€“16 from metallic surface texture; raising the bar prevents
+    // contrast ~12–16 from metallic surface texture; raising the bar prevents
     // those gap rows from being counted as "text", letting _findTextLines
     // produce separate bands for each of the 3 dot-matrix text lines.
     const THRESH  = 18;
@@ -1001,7 +1001,7 @@ const OCR = (() => {
   async function _tesseractRecognize(canvas) {
     if (!ready || !worker) await init();
 
-    // Preprocess once â€” reused for density analysis, debug image, and PSM-6 fallback
+    // Preprocess once — reused for density analysis, debug image, and PSM-6 fallback
     const processed = _preprocess(canvas);
     const pW = processed.width, pH = processed.height;
     const pScale = pW / canvas.width; // actual scale factor from _preprocess (currently 6)
@@ -1009,7 +1009,7 @@ const OCR = (() => {
     const _dbgImg = document.getElementById('ocr-debug-img');
     if (_dbgImg) { _dbgImg.src = processed.toDataURL('image/png'); _dbgImg.style.display = 'block'; }
 
-    // â”€â”€ Band detection + refinement of oversized bands â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Band detection + refinement of oversized bands ─────────────────────
     // _findTextLines operates on the raw canvas (color, not binary).
     // Bands wider than MAX_LINE_H are keg-body / embossed-marking regions; they
     // can still CONTAIN a label line at their bottom edge (the ring shadow, now
@@ -1019,17 +1019,17 @@ const OCR = (() => {
     const MAX_LINE_H = Math.round(canvas.height * 0.30);
 
     // Within an oversized band, walk the preprocessed image row-by-row and cluster
-    // rows with text-like black-pixel density (3â€“28 %) into sub-bands.
+    // rows with text-like black-pixel density (3–28 %) into sub-bands.
     //
     // Two-pass approach required for Bradley's precise binary output:
-    //   Pass 1 â€” collect all short density runs (â‰¥ 2 original px).
+    //   Pass 1 — collect all short density runs (â‰¥ 2 original px).
     //            Bradley draws individual dot-matrix dot rows cleanly, with 0%
-    //            density in the 1â€“3 px gaps between dot rows.  The old â‰¥10 px
+    //            density in the 1–3 px gaps between dot rows.  The old â‰¥10 px
     //            minimum silently discarded every single dot row, leaving nothing.
-    //   Pass 2 â€” merge runs whose gap is < 6 original px (= 24 scaled px).
+    //   Pass 2 — merge runs whose gap is < 6 original px (= 24 scaled px).
     //            This bridges inter-dot gaps within one text line without
     //            merging separate text lines (which are â‰¥ 10 original px apart).
-    //   Filter â€” keep merged bands â‰¥ 10 original px tall.
+    //   Filter — keep merged bands â‰¥ 10 original px tall.
     function extractSubBands(band) {
       const py0 = Math.min(band.y0 * pScale, pH);
       const py1 = Math.min(band.y1 * pScale, pH);
@@ -1046,8 +1046,8 @@ const OCR = (() => {
           for (let x = 0; x < pW; x++) { if (pD[(row + x) * 4] < 128) black++; }
           density = black / pW;
         }
-        // 0.08 minimum filters inter-line Bradley noise (typically 2â€“7%)
-        // while keeping real dot-matrix ink rows (typically 8â€“25%).
+        // 0.08 minimum filters inter-line Bradley noise (typically 2–7%)
+        // while keeping real dot-matrix ink rows (typically 8–25%).
         const isText = density >= 0.08 && density <= 0.28;
         if (!inRun && isText)  { inRun = true; runStart = y; }
         else if (inRun && !isText) {
@@ -1059,7 +1059,7 @@ const OCR = (() => {
 
       // Pass 2: merge runs with gap < ~2.5 original px.
       // Bridges the tiny inter-dot gaps within one text line
-      // without merging separate text lines (â‰¥ 8â€“10 original px apart).
+      // without merging separate text lines (â‰¥ 8–10 original px apart).
       const GAP = Math.round(pScale * 2.5);
       const merged = [{ s: runs[0].s, e: runs[0].e }];
       for (let i = 1; i < runs.length; i++) {
@@ -1101,14 +1101,14 @@ const OCR = (() => {
     const _dbgPath = lines.length === 1 ? 'PSM-6 label-crop'
                    : lines.length >= 2 && lines.length <= 6 ? 'PSM-7 per-line'
                    : 'PSM-6 full block';
-    console.log(`[OCR] raw=${rawLines.length} refined=${lines.length} â†’ ${_dbgPath} | ${canvas.width}Ã—${canvas.height}`);
+    console.log(`[OCR] raw=${rawLines.length} refined=${lines.length} → ${_dbgPath} | ${canvas.width}×${canvas.height}`);
     const _dbgInfo = document.getElementById('ocr-debug-info');
     if (_dbgInfo) _dbgInfo.textContent =
-      `Canvas: ${canvas.width}Ã—${canvas.height}px\nBands raw=${rawLines.length} refined=${lines.length}: ${lines.map((l,i)=>`[${i}]h=${l.y1-l.y0}`).join(' ')}\nPath: ${_dbgPath}`;
+      `Canvas: ${canvas.width}×${canvas.height}px\nBands raw=${rawLines.length} refined=${lines.length}: ${lines.map((l,i)=>`[${i}]h=${l.y1-l.y0}`).join(' ')}\nPath: ${_dbgPath}`;
 
-    // â”€â”€ PSM-6 on tight label crop (single refined band) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── PSM-6 on tight label crop (single refined band) ───────────────────
     if (lines.length === 1) {
-      Camera.setStatus('reading', 'Reading labelâ€¦');
+      Camera.setStatus('reading', 'Reading label…');
       const { y0, y1 } = lines[0];
       const r = await worker.recognize(_preprocess(_cropLine(canvas, y0, y1)));
       const text = (r.data.text || '').trim();
@@ -1121,14 +1121,14 @@ const OCR = (() => {
       }
     }
 
-    // â”€â”€ PSM-7 per-line (2â€“6 refined bands) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── PSM-7 per-line (2–6 refined bands) ───────────────────────────────
     if (lines.length >= 2 && lines.length <= 6) {
-      Camera.setStatus('reading', `Reading ${lines.length} linesâ€¦`);
+      Camera.setStatus('reading', `Reading ${lines.length} lines…`);
       const lineTexts = [];
       let totalConf = 0;
       for (const { y0, y1 } of lines) {
-        // Tall bands (â‰¥40px) contain multiple text lines â€” use PSM-6 (block).
-        // Narrow bands are single lines â€” use PSM-7.
+        // Tall bands (â‰¥40px) contain multiple text lines — use PSM-6 (block).
+        // Narrow bands are single lines — use PSM-7.
         const psm = (y1 - y0 >= 40) ? '6' : '7';
         await worker.setParameters({ tessedit_pageseg_mode: psm });
         const r = await worker.recognize(_preprocess(_cropLine(canvas, y0, y1)));
@@ -1146,20 +1146,20 @@ const OCR = (() => {
       }
     }
 
-    // â”€â”€ PSM-6 full block fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── PSM-6 full block fallback ──────────────────────────────────────────
     let result = await worker.recognize(processed);
     let text = (result.data.text || '').trim();
     let confidence = result.data.confidence || 0;
 
     if (text.length < 3) {
-      Camera.setStatus('reading', 'Retrying (inverted)â€¦');
+      Camera.setStatus('reading', 'Retrying (inverted)…');
       const rInv = await worker.recognize(_preprocess(canvas, true));
       const tInv = (rInv.data.text || '').trim();
       if (tInv.length > text.length) { text = tInv; confidence = rInv.data.confidence || 0; }
     }
 
     if (text.length < 3) {
-      Camera.setStatus('reading', 'Retrying (PSM 4)â€¦');
+      Camera.setStatus('reading', 'Retrying (PSM 4)…');
       await worker.setParameters({ tessedit_pageseg_mode: '4' });
       const r4 = await worker.recognize(processed);
       const t4 = (r4.data.text || '').trim();
@@ -1171,11 +1171,11 @@ const OCR = (() => {
   }
 
   async function recognize(canvas) {
-    Camera.setStatus('reading', 'Readingâ€¦');
+    Camera.setStatus('reading', 'Reading…');
     try {
-      // â”€â”€ 0. Azure AI Vision (highest accuracy â€” Power Automate OCR engine) â”€â”€
+      // ── 0. Azure AI Vision (highest accuracy — Power Automate OCR engine) ──
       if (Store.getAzureKey() && Store.getAzureEndpoint()) {
-        Camera.setStatus('reading', 'Reading (Azure AI)â€¦');
+        Camera.setStatus('reading', 'Reading (Azure AI)…');
         try {
           const processed = _preprocess(canvas);
           const ar = await _azureRecognize(processed);
@@ -1187,24 +1187,24 @@ const OCR = (() => {
             );
             return { text: ar.text, confidence: ar.confidence, status, engine: 'azure' };
           }
-          console.warn('Azure OCR returned empty â€” falling back');
+          console.warn('Azure OCR returned empty — falling back');
         } catch (err) {
           console.warn('Azure OCR failed, falling back:', err.message);
         }
       }
 
-      // â”€â”€ Label detection: find text band and crop to it â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Label detection: find text band and crop to it ────────────────────
       // Crops the capture to just the rows containing dot-matrix ink so that
       // text from other objects or surfaces in the frame is excluded entirely.
       const { canvas: labelCanvas, cropped } = _findLabelCrop(canvas);
       if (!cropped && !_isKegSurface(canvas)) {
-        Camera.setStatus('reading', 'Adjust â€” point at keg label');
+        Camera.setStatus('reading', 'Adjust — point at keg label');
       }
 
-      // â”€â”€ 1. PaddleOCR (localhost only â€” best accuracy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── 1. PaddleOCR (localhost only — best accuracy) ──────────────────────
       const hasPaddle = await _checkPaddle();
       if (hasPaddle) {
-        Camera.setStatus('reading', 'Reading (PaddleOCR)â€¦');
+        Camera.setStatus('reading', 'Reading (PaddleOCR)…');
         try {
           // PaddleOCR needs the natural (raw) image — send raw canvas, not the binarized one.
           const pr = await _paddleRecognize(labelCanvas);
@@ -1216,15 +1216,15 @@ const OCR = (() => {
             );
             return { text: pr.text, confidence: pr.confidence, status, engine: 'paddle' };
           }
-          console.warn('PaddleOCR returned empty â€” falling back');
+          console.warn('PaddleOCR returned empty — falling back');
         } catch (err) {
           console.warn('PaddleOCR failed, falling back:', err.message);
           paddleAvailable = false;
         }
       }
 
-      // â”€â”€ 2. Native TextDetector (Android Chrome â€” Google's on-device ML OCR) â”€
-      Camera.setStatus('reading', 'Readingâ€¦');
+      // ── 2. Native TextDetector (Android Chrome — Google's on-device ML OCR) ─
+      Camera.setStatus('reading', 'Reading…');
       const nativeResult = await _nativeOCR(labelCanvas);
       if (nativeResult && nativeResult.text.length > 2) {
         console.log('Native TextDetector succeeded');
@@ -1232,15 +1232,15 @@ const OCR = (() => {
         return { text: nativeResult.text, confidence: nativeResult.confidence, status: 'good', engine: 'native' };
       }
 
-      // â”€â”€ 3. Tesseract fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      Camera.setStatus('reading', 'Reading (Tesseract)â€¦');
+      // ── 3. Tesseract fallback ──────────────────────────────────────────────
+      Camera.setStatus('reading', 'Reading (Tesseract)…');
       let { text, confidence } = await _tesseractRecognize(labelCanvas);
 
       // If the label-crop result contains no recognisable keg patterns, retry on
       // the original (guide-box) canvas. This handles the common real-world case
       // where _findLabelCrop latches onto high-contrast EMBOSSED text stamped on
       // the keg body (e.g. "PROPERTY OF HEINEKEN 3-0801-1") instead of the small
-      // dot-matrix printed label below â€” embossed characters cast deep shadows that
+      // dot-matrix printed label below — embossed characters cast deep shadows that
       // produce much higher row-contrast than the actual ink.
       if (text.length > 0 && cropped) {
         const tu = text.toUpperCase();
@@ -1248,14 +1248,14 @@ const OCR = (() => {
           /[LI1][0-9OISBGZE]{3}/.test(tu) ||
           /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/.test(tu);
         if (!hasKegPattern) {
-          Camera.setStatus('reading', 'Retrying full frameâ€¦');
+          Camera.setStatus('reading', 'Retrying full frame…');
           const r2 = await _tesseractRecognize(canvas);
           if (r2.text.length > text.length) { text = r2.text; confidence = r2.confidence; }
         }
       }
 
       if (text.length < 1) {
-        Camera.setStatus('error', 'No text found â€” aim at the label');
+        Camera.setStatus('error', 'No text found — aim at the label');
         return { text: '', confidence: 0, status: 'low', engine: 'tesseract' };
       }
 
@@ -1282,18 +1282,18 @@ const OCR = (() => {
 const LLM = (() => {
   const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-  // Vision prompt â€” sent WITH the image so Gemini reads the label directly
+  // Vision prompt — sent WITH the image so Gemini reads the label directly
   const VISION_PROMPT = `You are reading a beer keg label. The image shows a cropped section of a metallic keg surface with dot-matrix machine-printed ink.
 
 Locate the printed text (NOT embossed markings, NOT decorative artwork on the keg) and extract exactly these 3 fields:
 
-LOT NUMBER â€” always starts with the letter L followed by exactly 7 digits (e.g. L6069104). There may be a timestamp like (08:15) after it â€” ignore everything after the digits. Remove any spaces OCR inserted between digits. If the L is misread as I or 1, treat it as L.
+LOT NUMBER — always starts with the letter L followed by exactly 7 digits (e.g. L6069104). There may be a timestamp like (08:15) after it — ignore everything after the digits. Remove any spaces OCR inserted between digits. If the L is misread as I or 1, treat it as L.
 
-BEST BEFORE DATE â€” format DD MON YYYY (e.g. 10 SEP 2026). Convert to YYYY-MM-DD for output.
+BEST BEFORE DATE — format DD MON YYYY (e.g. 10 SEP 2026). Convert to YYYY-MM-DD for output.
 Valid months: JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC
 
-BRAND â€” must match exactly one of: {{BRANDS}}
-The line may have extra text after the brand name â€” extract only the matching brand word.
+BRAND — must match exactly one of: {{BRANDS}}
+The line may have extra text after the brand name — extract only the matching brand word.
 
 Common reading issues on metallic surfaces: digit 0 looks like letter O, digit 1 looks like I or l, digit 5 looks like S, digit 8 looks like B.
 
@@ -1307,21 +1307,21 @@ The keg has exactly 3 lines of brown or black handwritten ink. Ignore ALL printe
 
 Extract ONLY these 3 fields in order:
 
-LINE 1 â€” LOT NUMBER:
-- The line may contain extra content after the lot number, such as "(13:20)" â€” IGNORE everything after the first L+7digit sequence
+LINE 1 — LOT NUMBER:
+- The line may contain extra content after the lot number, such as "(13:20)" — IGNORE everything after the first L+7digit sequence
 - Always starts with letter "L" followed by exactly 7 digits
 - Remove any spaces OCR inserted between the digits
-- Examples: "L6012345 (13:20)" â†’ "L6012345",  "L 123 4 567 (09:00)" â†’ "L1234567"
+- Examples: "L6012345 (13:20)" → "L6012345",  "L 123 4 567 (09:00)" → "L1234567"
 - If no L+7digit pattern exists, return ""
 
-LINE 2 â€” BEST BEFORE DATE:
+LINE 2 — BEST BEFORE DATE:
 - Format is always: DD MON YYYY (e.g., "14 SEP 2026", "3 JAN 2025")
 - Valid months: JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC
-- Convert to YYYY-MM-DD for output (e.g., "14 SEP 2026" â†’ "2026-09-14")
+- Convert to YYYY-MM-DD for output (e.g., "14 SEP 2026" → "2026-09-14")
 - If not found, return ""
 
-LINE 3 â€” BRAND:
-- The line may contain extra text after the brand name (e.g., "BAWDAR NKL", "HEINEKEN 330") â€” extract only the part that matches the known list
+LINE 3 — BRAND:
+- The line may contain extra text after the brand name (e.g., "BAWDAR NKL", "HEINEKEN 330") — extract only the part that matches the known list
 - Must match EXACTLY one of: {{BRANDS}}
 - Case-insensitive match; return in UPPERCASE exactly as listed
 - If no match found in the line, return ""
@@ -1411,7 +1411,7 @@ Confidence 0-100: how certain you are each field is correct.`;
     t = t.replace(/Â¢/g, '(');
 
     // Within lot-number spans (L + digit-like chars + spaces), substitute
-    // ambiguous letters â†’ digits. Gâ†’6 and Eâ†’6 are critical for dot-matrix
+    // ambiguous letters → digits. G→6 and E→6 are critical for dot-matrix
     // fonts where the digit 6 is frequently misread as G or E by Tesseract.
     t = t.replace(/L[0-9OISBGZEe\s]{6,18}/g, span =>
       span.replace(/O/g, '0').replace(/I/g, '1').replace(/S/g, '5')
@@ -1419,11 +1419,11 @@ Confidence 0-100: how certain you are each field is correct.`;
           .replace(/E/g, '6')
     );
 
-    // Fix O/I/S/B digit errors anywhere a 4-digit year appears (e.g. 2O26 â†’ 2026)
+    // Fix O/I/S/B digit errors anywhere a 4-digit year appears (e.g. 2O26 → 2026)
     t = t.replace(/\b2[0-9OISB]{3}\b/g, span =>
       span.replace(/O/g, '0').replace(/I/g, '1').replace(/S/g, '5').replace(/B/g, '8')
     );
-    // Same fix for 2-digit day (e.g. 1O SEP â†’ 10 SEP, IO SEP â†’ 10 SEP)
+    // Same fix for 2-digit day (e.g. 1O SEP → 10 SEP, IO SEP → 10 SEP)
     // Tens digit includes I/1 because Tesseract misreads "1" as "I" on dot-matrix labels
     t = t.replace(/\b([0-3IO1][0-9OISB])\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\b/g,
       (m, day, mon) => day.replace(/O/g, '0').replace(/I/g, '1') + ' ' + mon
@@ -1441,7 +1441,7 @@ Confidence 0-100: how certain you are each field is correct.`;
     return t;
   }
 
-  // Levenshtein edit distance â€” used for fuzzy brand matching
+  // Levenshtein edit distance — used for fuzzy brand matching
   function _editDist(a, b) {
     if (a === b) return 0;
     if (Math.abs(a.length - b.length) > 2) return 99;
@@ -1468,13 +1468,13 @@ Confidence 0-100: how certain you are each field is correct.`;
 
     const clean = _fixOCR(text);
 
-    // â”€â”€ LOT NUMBER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── LOT NUMBER ───────────────────────────────────────────────────────────
     // Remove any parenthetical/timestamp content first
     const noParens = clean.replace(/[\(\[\{][^\)\]\}]*[\)\]\}]/g, ' ');
 
-    // Attempt 1 â€” L present (possibly misread as I or 1)
+    // Attempt 1 — L present (possibly misread as I or 1)
     // Character class includes all letters that are commonly misread from digits:
-    // Oâ†’0, Iâ†’1, Sâ†’5, Bâ†’8, Gâ†’6 (very common for dot-matrix 6), Zâ†’2
+    // O→0, I→1, S→5, B→8, G→6 (very common for dot-matrix 6), Z→2
     const lotStrict = noParens.match(/[LI1]([0-9OISBGZEe\s]{7,18})/);
     if (lotStrict) {
       const digits = lotStrict[1]
@@ -1487,7 +1487,7 @@ Confidence 0-100: how certain you are each field is correct.`;
       }
     }
 
-    // Attempt 2 â€” L completely missing: grab any standalone 7-digit run
+    // Attempt 2 — L completely missing: grab any standalone 7-digit run
     // (PSM 11 can sometimes drop the leading L into a different text region)
     if (!result.lotNumber) {
       const bareMatch = noParens.match(/\b(\d{7})\b/);
@@ -1497,7 +1497,7 @@ Confidence 0-100: how certain you are each field is correct.`;
       }
     }
 
-    // â”€â”€ DATE: DD MON YYYY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── DATE: DD MON YYYY ────────────────────────────────────────────────────
     const cleanAlpha = clean.replace(/[^\w\s\n]/g, ' ');
     const dateMatch = cleanAlpha.match(
       /(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})/
@@ -1512,10 +1512,10 @@ Confidence 0-100: how certain you are each field is correct.`;
       }
     }
 
-    // â”€â”€ BRAND â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── BRAND ────────────────────────────────────────────────────────────────
     const brands = Store.getList('brand');
 
-    // Pass 1 â€” exact substring (fastest, highest confidence)
+    // Pass 1 — exact substring (fastest, highest confidence)
     for (const b of brands) {
       if (cleanAlpha.includes(b.toUpperCase())) {
         result.brand = b;
@@ -1524,9 +1524,9 @@ Confidence 0-100: how certain you are each field is correct.`;
       }
     }
 
-    // Pass 2 â€” fuzzy per-word match using edit distance.
-    // Allows 1 character error for brands â‰¥ 5 chars (e.g. BAWDARâ†’BAWDOR),
-    // 2 errors for â‰¥ 8 chars (e.g. HEINEKENâ†’HE1NEKEN).
+    // Pass 2 — fuzzy per-word match using edit distance.
+    // Allows 1 character error for brands â‰¥ 5 chars (e.g. BAWDAR→BAWDOR),
+    // 2 errors for â‰¥ 8 chars (e.g. HEINEKEN→HE1NEKEN).
     if (!result.brand) {
       const words = cleanAlpha.split(/\s+/).filter(w => w.length >= 3);
       outer: for (const b of brands) {
@@ -1617,7 +1617,7 @@ Confidence 0-100: how certain you are each field is correct.`;
 
 /* ===== scanner.js ===== */
 /**
- * scanner.js â€” Orchestrates capture â†’ OCR â†’ LLM â†’ field population
+ * scanner.js — Orchestrates capture → OCR → LLM → field population
  */
 const Scanner = (() => {
   let isProcessing = false;
@@ -1638,7 +1638,7 @@ const Scanner = (() => {
     if (isProcessing) return;
     isProcessing = true;
 
-    // Shutter flash â€” confirms a still photo was taken (OCR runs on this frame, not live video)
+    // Shutter flash — confirms a still photo was taken (OCR runs on this frame, not live video)
     const viewport = document.getElementById('camera-viewport');
     const flash = document.createElement('div');
     flash.className = 'camera-flash';
@@ -1647,7 +1647,7 @@ const Scanner = (() => {
 
     const captureBtn = document.getElementById('capture-btn');
     captureBtn.classList.add('capturing');
-    Camera.setStatus('reading', 'Capturingâ€¦');
+    Camera.setStatus('reading', 'Capturing…');
 
     try {
       // 1. Capture frame
@@ -1663,12 +1663,12 @@ const Scanner = (() => {
 
       const enginePref = Store.getOcrEngine(); // 'auto'|'gemini'|'paddle'|'tesseract'
 
-      // 2. Gemini Vision â€” used when engine is 'gemini' (forced) or 'auto' with API key.
+      // 2. Gemini Vision — used when engine is 'gemini' (forced) or 'auto' with API key.
       //    Gemini reads the raw photo directly, bypassing Tesseract entirely.
       //    Necessary because Tesseract's LSTM misreads dot-matrix fonts systematically.
       const useGemini = enginePref === 'gemini' || (enginePref === 'auto' && Store.getApiKey());
       if (useGemini && Store.getApiKey()) {
-        Camera.setStatus('reading', 'Reading with Gemini AIâ€¦');
+        Camera.setStatus('reading', 'Reading with Gemini AI…');
         try {
           const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
           const visionResult = await LLM.extractFromImage(dataUrl);
@@ -1690,17 +1690,17 @@ const Scanner = (() => {
         }
         // Forced Gemini mode: don't fall through to Tesseract
         if (enginePref === 'gemini') {
-          Camera.setStatus('error', 'Gemini Vision failed â€” check API key in settings');
+          Camera.setStatus('error', 'Gemini Vision failed — check API key in settings');
           return;
         }
       }
 
-      // 3. Tesseract OCR â€” offline fallback (no API key required)
-      Camera.setStatus('reading', 'Running OCRâ€¦');
+      // 3. Tesseract OCR — offline fallback (no API key required)
+      Camera.setStatus('reading', 'Running OCR…');
       const ocrResult = await OCR.recognize(canvas);
 
       if (ocrResult.status === 'error') {
-        Camera.setStatus('error', 'OCR error â€” try again');
+        Camera.setStatus('error', 'OCR error — try again');
         return;
       }
 
@@ -1715,12 +1715,12 @@ const Scanner = (() => {
       }
 
       if (!ocrResult.text) {
-        Camera.setStatus('error', 'No text detected â€” reposition label');
+        Camera.setStatus('error', 'No text detected — reposition label');
         return;
       }
 
       // 4. Extract fields from Tesseract text (regex + fuzzy matching)
-      Camera.setStatus('reading', 'Extracting fieldsâ€¦');
+      Camera.setStatus('reading', 'Extracting fields…');
       const extracted = await LLM.extract(ocrResult.text);
 
       // 5. Populate fields
@@ -1730,7 +1730,7 @@ const Scanner = (() => {
       checkDuplicate();
 
       const fieldsFound = [extracted.lotNumber, extracted.brand, extracted.bestBefore].filter(Boolean).length;
-      Camera.setStatus('ready', fieldsFound > 0 ? `Extracted ${fieldsFound}/3 fields` : 'No fields matched â€” check raw text');
+      Camera.setStatus('ready', fieldsFound > 0 ? `Extracted ${fieldsFound}/3 fields` : 'No fields matched — check raw text');
     } catch (err) {
       console.error('Scan error:', err);
       Camera.setStatus('error', 'Scan failed');
@@ -1858,7 +1858,7 @@ const Scanner = (() => {
     const target = session.targetCount || 0;
 
     document.getElementById('scanned-count').textContent = count;
-    document.getElementById('target-display').textContent = target || 'â€”';
+    document.getElementById('target-display').textContent = target || '—';
 
     // Progress ring
     const pct = target > 0 ? Math.min(count / target, 1) : 0;
@@ -1920,9 +1920,9 @@ const Table = (() => {
     const countEl = document.getElementById('table-count');
 
     // Session-level values shared across all rows
-    const truck = session ? _esc(session.truckNumber) : 'â€”';
-    const sDate = session ? (session.date || 'â€”') : 'â€”';
-    const shipTo = session ? _esc(session.shipTo) : 'â€”';
+    const truck = session ? _esc(session.truckNumber) : '—';
+    const sDate = session ? (session.date || '—') : '—';
+    const shipTo = session ? _esc(session.shipTo) : '—';
 
     countEl.textContent = kegs.length + ' keg' + (kegs.length !== 1 ? 's' : '');
 
@@ -1962,7 +1962,7 @@ const Table = (() => {
         <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
         <td>${_esc(k.lotNumber)}</td>
         <td>${_esc(k.brand)}</td>
-        <td>${k.bestBefore || 'â€”'}</td>
+        <td>${k.bestBefore || '—'}</td>
         <td>${_esc(k.kegSize)}</td>
         <td>${truck}</td>
         <td>${sDate}</td>
@@ -2008,7 +2008,7 @@ const Table = (() => {
   }
 
   function _esc(str) {
-    if (!str) return 'â€”';
+    if (!str) return '—';
     const d = document.createElement('div');
     d.textContent = str;
     return d.innerHTML;
