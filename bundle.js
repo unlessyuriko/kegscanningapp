@@ -629,10 +629,17 @@ const OCR = (() => {
     if (paddleAvailable !== null) return paddleAvailable;
     try {
       const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 1500);
-      const resp = await fetch(`${PADDLE_URL}/ping`, { signal: ctrl.signal });
+      const tid = setTimeout(() => ctrl.abort(), 5000);
+      // ngrok-skip-browser-warning bypasses ngrok's interstitial HTML page for programmatic requests.
+      const resp = await fetch(`${PADDLE_URL}/ping`, {
+        signal: ctrl.signal,
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      });
       clearTimeout(tid);
-      paddleAvailable = resp.ok;
+      if (!resp.ok) { paddleAvailable = false; return false; }
+      // Verify it's a real JSON response from the server, not ngrok's HTML interstitial.
+      const ct = resp.headers.get('content-type') || '';
+      paddleAvailable = ct.includes('application/json') || ct.includes('text/plain');
     } catch {
       paddleAvailable = false;
     }
@@ -647,7 +654,10 @@ const OCR = (() => {
     try {
       const resp = await fetch(`${_getPaddleUrl()}/ocr`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
         body: JSON.stringify({ image: base64 }),
         signal: ctrl.signal
       });

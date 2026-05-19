@@ -2,5 +2,4 @@
 requirements.txt
 ocr-debug.html
 keg_scanning_prd.md
-*.md
 js/
