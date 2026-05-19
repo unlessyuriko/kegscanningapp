@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="52" viewBox="0 0 200 52" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Heineken Myanmar logo — transparent background.
+    Star: 5-pointed, red #C8102E, centred at (20,22), outer r=16, inner r=6.4.
+    Text: dark Heineken green #1a5c2a.
+  -->
+
+  <!-- Red 5-pointed star -->
+  <polygon
+    points="20,6 23.76,16.82 35.22,17.06 26.09,23.98 29.40,34.94 20,28.40 10.60,34.94 13.91,23.98 4.78,17.06 16.24,16.82"
+    fill="#C8102E"/>
+
+  <!-- HEINEKEN wordmark -->
+  <text
+    x="44" y="30"
+    font-family="'Arial Black', 'Arial Bold', Arial, sans-serif"
+    font-weight="900"
+    font-size="24"
+    fill="#1a5c2a"
+    letter-spacing="1">HEINEKEN</text>
+
+  <!-- Myanmar -->
+  <text
+    x="49" y="47"
+    font-family="Arial, 'Helvetica Neue', sans-serif"
+    font-weight="700"
+    font-size="13"
+    fill="#1a5c2a"
+    letter-spacing="0.5">Myanmar</text>
+</svg>

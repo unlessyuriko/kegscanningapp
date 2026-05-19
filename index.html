@@ -1,0 +1,369 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Heineken Keg Scanning App - AI-powered keg tracking">
+  <title>Keg Scanner - Heineken</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* OCR engine selector bar */
+    .engine-bar { display:flex; align-items:center; gap:8px; padding:6px 12px; background:#111; border-top:1px solid #222; }
+    .engine-bar-lbl { font-size:11px; color:#555; white-space:nowrap; flex-shrink:0; }
+    .engine-pills { display:flex; gap:4px; flex-wrap:wrap; }
+    .engine-pill { padding:3px 11px; font-size:11px; font-weight:500; border-radius:20px; border:1px solid #333; background:#1e1e1e; color:#666; cursor:pointer; transition:all 0.15s; line-height:1.5; }
+    .engine-pill.active { background:#00a651; border-color:#00a651; color:#fff; }
+    .engine-pill:not(.active):hover { border-color:#555; color:#ccc; }
+    /* Settings modal sections */
+    .settings-section { margin-bottom:18px; }
+    .settings-section-title { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#888; margin-bottom:8px; }
+    .settings-status { font-size:12px; padding:4px 10px; border-radius:6px; margin-bottom:10px; display:inline-block; }
+    .settings-status.active  { background:#0d3320; color:#00c853; }
+    .settings-status.inactive{ background:#2a2a2a; color:#777; }
+  </style>
+</head>
+<body>
+
+  <!-- SETUP MODAL -->
+  <div id="setup-modal" class="modal-overlay active">
+    <div class="modal-card setup-card">
+      <div class="modal-logo">
+        <img src="logo.svg" alt="Heineken Myanmar" class="hk-logo-main">
+        <div class="logo-text">
+          <h1>Keg Scanner</h1>
+          <p class="logo-tagline">Scan &middot; Track &middot; Submit</p>
+        </div>
+      </div>
+
+      <!-- MICROSOFT SIGN-IN BANNER -->
+      <div class="auth-banner" id="auth-banner">
+        <div class="when-unauthed auth-signin-row">
+          <button class="btn btn-microsoft" id="signin-btn" type="button">
+            <svg width="18" height="18" viewBox="0 0 21 21" fill="none" style="flex-shrink:0">
+              <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
+              <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
+              <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
+              <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+            </svg>
+            Sign in with Microsoft
+          </button>
+          <p class="auth-note">Required to submit data to SharePoint</p>
+        </div>
+        <!-- DEBUG PANEL -->
+        <details class="auth-debug-wrap">
+          <summary class="auth-debug-toggle">&#128270; Auth debug</summary>
+          <div class="auth-debug-grid">
+            <span>Status</span>   <span id="auth-dbg-status" class="dbg-val">waiting…</span>
+            <span>Redirect URI</span> <span id="auth-dbg-redirect" class="dbg-val">—</span>
+            <span>MSAL</span>     <span id="auth-dbg-msal-ver" class="dbg-val">—</span>
+            <span>Error</span>    <span id="auth-dbg-error" class="dbg-val dbg-err">—</span>
+          </div>
+        </details>
+
+        <div class="when-authed hidden auth-user-row">
+          <div class="auth-chip">
+            <span class="auth-avatar auth-user-initials"></span>
+            <span class="auth-user-name" style="font-size:0.82rem;font-weight:500;color:var(--text)"></span>
+          </div>
+          <button class="btn btn-ghost btn-xs" id="signout-btn" type="button">Sign out</button>
+        </div>
+      </div>
+
+      <!-- SCANNER TYPE SELECTOR -->
+      <div class="type-selector" id="type-selector">
+        <button class="type-btn selected" data-type="keg" type="button">
+          <div class="type-icon-wrap">
+            <svg class="type-icon-svg" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12,6 C6,10 6,26 12,30 H24 C30,26 30,10 24,6 Z"/>
+              <ellipse cx="18" cy="6" rx="6" ry="2"/>
+              <ellipse cx="18" cy="30" rx="6" ry="2"/>
+              <line x1="7" y1="13" x2="29" y2="13"/>
+              <line x1="7" y1="23" x2="29" y2="23"/>
+              <circle cx="18" cy="3" r="1.5"/>
+              <line x1="18" y1="4.5" x2="18" y2="6"/>
+            </svg>
+          </div>
+          <span class="type-label">Keg</span>
+          <span class="type-desc">Barrel scanning</span>
+          <span class="type-check">&#10003;</span>
+        </button>
+        <button class="type-btn disabled" data-type="bottle" type="button">
+          <div class="type-icon-wrap">
+            <svg class="type-icon-svg" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="15" y="1" width="6" height="3" rx="1"/>
+              <path d="M16,4 L16,14 C12,17 11,20 11,22 L11,30 Q18,34 25,30 L25,22 C25,20 24,17 20,14 L20,4"/>
+              <ellipse cx="18" cy="26" rx="5" ry="3.5"/>
+            </svg>
+          </div>
+          <span class="type-label">Bottle</span>
+          <span class="type-desc">Coming Soon</span>
+          <span class="type-badge">Soon</span>
+        </button>
+      </div>
+
+      <div class="setup-divider"><span>Session Details</span></div>
+
+      <form id="session-form" class="setup-form">
+        <div class="form-group">
+          <label for="session-date">Date</label>
+          <input type="date" id="session-date" required>
+        </div>
+        <div class="form-group">
+          <label for="truck-number">Truck Number</label>
+          <input type="text" id="truck-number" placeholder="e.g. 1H/7767" required>
+        </div>
+        <div class="form-group">
+          <label for="ship-to">Ship To</label>
+          <select id="ship-to" required><option value="">Select destination&hellip;</option></select>
+        </div>
+        <div class="form-group">
+          <label for="keg-size">Keg Size</label>
+          <select id="keg-size" required><option value="">Select size&hellip;</option></select>
+        </div>
+        <div class="form-group">
+          <label for="target-count">Target Count <span class="optional">(optional)</span></label>
+          <input type="number" id="target-count" min="0" placeholder="e.g. 50">
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" id="start-session-btn">&#9654; Start Session</button>
+      </form>
+      <button class="btn btn-ghost admin-link" id="open-admin-btn" type="button">&#9881; Manage Lists</button>
+    </div>
+  </div>
+
+  <!-- ADMIN MODAL -->
+  <div id="admin-modal" class="modal-overlay">
+    <div class="modal-card admin-card">
+      <div class="modal-header">
+        <h2>&#9881; Manage Lists</h2>
+        <button class="btn-close" id="close-admin-btn">&times;</button>
+      </div>
+      <div class="admin-tabs">
+        <button class="tab-btn active" data-tab="shipto">Ship To</button>
+        <button class="tab-btn" data-tab="kegsize">Keg Size</button>
+        <button class="tab-btn" data-tab="brand">Brand</button>
+      </div>
+      <div class="admin-content">
+        <div class="tab-panel active" id="tab-shipto">
+          <div class="admin-input-row">
+            <input type="text" id="new-shipto" placeholder="Add new destination&hellip;">
+            <button class="btn btn-primary btn-sm" id="add-shipto-btn">Add</button>
+          </div>
+          <ul class="admin-list" id="shipto-list"></ul>
+        </div>
+        <div class="tab-panel" id="tab-kegsize">
+          <div class="admin-input-row">
+            <input type="text" id="new-kegsize" placeholder="Add new keg size&hellip;">
+            <button class="btn btn-primary btn-sm" id="add-kegsize-btn">Add</button>
+          </div>
+          <ul class="admin-list" id="kegsize-list"></ul>
+        </div>
+        <div class="tab-panel" id="tab-brand">
+          <div class="admin-input-row">
+            <input type="text" id="new-brand" placeholder="Add new brand&hellip;">
+            <button class="btn btn-primary btn-sm" id="add-brand-btn">Add</button>
+          </div>
+          <ul class="admin-list" id="brand-list"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app" class="app hidden">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="btn btn-back" id="back-btn" title="Back to Setup">&#8592; Back</button>
+        <img src="logo-star.svg" alt="Heineken Myanmar" class="hk-logo-star">
+        <div class="session-info">
+          <span class="session-chip type-chip" id="hdr-type"></span>
+          <span class="session-chip" id="hdr-date"></span>
+          <span class="session-chip" id="hdr-truck"></span>
+          <span class="session-chip" id="hdr-shipto"></span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="counter-badge" id="counter-badge">
+          <span class="counter-label">Scanned</span>
+          <span class="counter-value"><span id="scanned-count">0</span> / <span id="target-display">&#8212;</span></span>
+        </div>
+        <div class="progress-ring-wrap">
+          <svg class="progress-ring" width="48" height="48">
+            <circle class="progress-ring-bg" cx="24" cy="24" r="20"/>
+            <circle class="progress-ring-fill" id="progress-ring-fill" cx="24" cy="24" r="20"/>
+          </svg>
+          <span class="progress-pct" id="progress-pct">0%</span>
+        </div>
+        <!-- Signed-in user chip in header -->
+        <div class="when-authed hidden header-auth-chip">
+          <span class="auth-avatar auth-user-initials"></span>
+          <span class="auth-user-name header-auth-name"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="camera-panel" id="camera-panel">
+        <div class="camera-viewport" id="camera-viewport">
+          <video id="camera-feed" autoplay playsinline muted></video>
+          <canvas id="camera-canvas" class="hidden"></canvas>
+          <div class="scan-guide" id="scan-guide">
+            <div class="guide-corner tl" data-handle="tl"></div>
+            <div class="guide-corner tr" data-handle="tr"></div>
+            <div class="guide-corner bl" data-handle="bl"></div>
+            <div class="guide-corner br" data-handle="br"></div>
+          </div>
+          <div class="scan-status" id="scan-status"><span class="status-dot"></span><span class="status-text">Ready</span></div>
+          <div class="quality-badge" id="quality-badge">
+            <span class="quality-dot"></span>
+            <span id="quality-text">&#8212;</span>
+          </div>
+          <div class="camera-controls">
+            <button class="btn btn-capture" id="capture-btn" title="Capture &amp; Extract"><span class="capture-ring"></span><span class="capture-dot"></span></button>
+            <button class="btn btn-icon-sm" id="switch-camera-btn" title="Switch Camera">&#128260;</button>
+            <button class="btn btn-icon-sm" id="reset-crop-btn" title="Reset scan area to default">&#10226;</button>
+          </div>
+        </div>
+        <div class="engine-bar" id="engine-bar">
+          <span class="engine-bar-lbl">OCR</span>
+          <div class="engine-pills">
+            <button class="engine-pill" data-engine="auto"      title="Auto: best available engine">Auto</button>
+            <button class="engine-pill" data-engine="gemini"    title="Gemini Vision AI - configure key in settings">Gemini</button>
+            <button class="engine-pill" data-engine="paddle"    title="PaddleOCR - configure server URL in settings">Paddle</button>
+            <button class="engine-pill" data-engine="tesseract" title="Offline Tesseract (no internet needed)">Tesseract</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="fields-panel" id="fields-panel">
+        <h2 class="panel-title">Extracted Fields</h2>
+        <div class="field-group">
+          <label for="field-lot">Lot Number</label>
+          <div class="field-input-wrap"><input type="text" id="field-lot" placeholder="Will be extracted&hellip;"><span class="confidence-dot" id="conf-lot"></span></div>
+        </div>
+        <div class="field-group">
+          <label for="field-brand">Brand</label>
+          <div class="field-input-wrap"><select id="field-brand"><option value="">Select brand&hellip;</option></select><span class="confidence-dot" id="conf-brand"></span></div>
+        </div>
+        <div class="field-group">
+          <label for="field-bbd">Best Before Date</label>
+          <div class="field-input-wrap"><input type="date" id="field-bbd"><span class="confidence-dot" id="conf-bbd"></span></div>
+        </div>
+        <div class="field-group">
+          <label for="field-kegsize">Keg Size</label>
+          <div class="field-input-wrap"><select id="field-kegsize"><option value="">Select size&hellip;</option></select></div>
+        </div>
+        <div class="field-actions">
+          <button class="btn btn-primary btn-lg" id="add-scan-btn" disabled>&#65291; Add Scan</button>
+          <button class="btn btn-ghost" id="clear-fields-btn">Clear</button>
+        </div>
+        <div class="duplicate-warning hidden" id="duplicate-warning">&#9888; Possible duplicate &mdash; this keg may already be scanned.</div>
+        <div class="ocr-raw-wrap hidden">
+          <div class="ocr-raw-label ocr-raw-title">Raw OCR text:</div>
+          <pre id="ocr-raw-text" class="ocr-raw-text"></pre>
+          <details style="margin-top:8px;">
+            <summary style="font-size:11px;color:#888;cursor:pointer;user-select:none;">&#128269; Debug panel</summary>
+            <div id="ocr-debug-info" style="font-size:11px;color:#888;margin-top:6px;font-family:monospace;white-space:pre-wrap;"></div>
+            <div style="font-size:11px;color:#999;margin-top:8px;">Captured frame (guide box):</div>
+            <img id="ocr-debug-capture" style="display:none;max-width:100%;border:1px solid #ccc;margin-top:2px;">
+            <div style="font-size:11px;color:#999;margin-top:8px;">Preprocessed (what Tesseract sees):</div>
+            <img id="ocr-debug-img" style="display:none;max-width:100%;border:1px solid #ccc;margin-top:2px;image-rendering:pixelated;">
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <section class="table-section">
+      <div class="table-header"><h2>Scanned Kegs</h2><span class="table-count" id="table-count">0 kegs</span></div>
+      <div class="table-wrap">
+        <table id="kegs-table">
+          <thead><tr><th>#</th><th>Status</th><th>Lot Number</th><th>Brand</th><th>Best Before</th><th>Keg Size</th><th>Truck</th><th>Date</th><th>Ship To</th><th>Time</th><th>Actions</th></tr></thead>
+          <tbody id="kegs-tbody"></tbody>
+        </table>
+        <div class="table-empty" id="table-empty"><span class="empty-icon">&#128230;</span><p>No kegs scanned yet.</p></div>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <button class="btn btn-submit btn-lg" id="finish-truck-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Submit &amp; Complete
+      </button>
+    </footer>
+
+    <button class="fab" id="settings-fab" title="Settings">&#9881;</button>
+    <div class="fab-menu hidden" id="fab-menu">
+      <button class="fab-item" id="fab-apikey">&#9728; OCR Settings</button>
+      <button class="fab-item" id="fab-admin">&#128203; Manage Lists</button>
+      <button class="fab-item" id="fab-new-session">&#128260; New Session</button>
+      <button class="fab-item when-authed hidden" id="fab-signout">&#10006; Sign Out</button>
+    </div>
+
+    <!-- OCR SETTINGS MODAL -->
+    <div id="apikey-modal" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-header"><h2>&#9881; OCR Settings</h2><button class="btn-close" id="close-apikey-btn">&times;</button></div>
+        <p class="modal-subtitle">Configure OCR engines. Keys stored locally on this device only.</p>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Gemini Vision AI (Recommended)</div>
+          <div id="gemini-status" class="settings-status inactive">Not configured</div>
+          <div class="form-group">
+            <label for="gemini-key-input">Gemini API Key</label>
+            <input type="password" id="gemini-key-input" placeholder="AIza&hellip;">
+          </div>
+          <div class="azure-setup-help">Free: 1,500 scans/day &mdash; get key at <em>aistudio.google.com</em> &rarr; Get API key</div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">PaddleOCR Server</div>
+          <div id="paddle-status" class="settings-status inactive">Not configured</div>
+          <div class="form-group">
+            <label for="paddle-url-input">Server URL</label>
+            <input type="text" id="paddle-url-input" placeholder="http://192.168.1.x:5001">
+          </div>
+          <div class="azure-setup-help">Run the PaddleOCR server on any machine in the same network, then paste its address above.</div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Azure AI Vision</div>
+          <div id="azure-status" class="azure-status-badge"></div>
+          <div class="form-group">
+            <label for="azure-endpoint-input">Endpoint URL</label>
+            <input type="text" id="azure-endpoint-input" placeholder="https://your-resource.cognitiveservices.azure.com">
+          </div>
+          <div class="form-group">
+            <label for="apikey-input">API Key</label>
+            <input type="password" id="apikey-input" placeholder="Enter your Azure key 1 or key 2&hellip;">
+          </div>
+          <div class="azure-setup-help">Free: 5,000 scans/month &mdash; portal.azure.com &rarr; Computer Vision &rarr; Keys and Endpoint</div>
+        </div>
+
+        <button class="btn btn-primary" id="save-apikey-btn">Save Settings</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LOADING OVERLAY (SharePoint upload) -->
+  <div class="loading-overlay hidden" id="submit-loading-overlay">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <p class="loading-message">Uploading to SharePoint&hellip;</p>
+    </div>
+  </div>
+
+  <script src="msal-browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="bundle.js"></script>
+</body>
+</html>
+
+
+
+

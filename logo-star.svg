@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="28" height="28" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  <!-- Heineken red star — used as compact header icon -->
+  <polygon
+    points="20,3 24.12,14.34 37.12,14.44 26.66,22.16 30.58,34.56 20,27.00 9.42,34.56 13.34,22.16 2.88,14.44 15.88,14.34"
+    fill="#C8102E"/>
+</svg>
