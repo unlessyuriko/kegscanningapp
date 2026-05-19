@@ -647,7 +647,8 @@ const OCR = (() => {
   }
 
   async function _paddleRecognize(canvas) {
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    // PNG is lossless — JPEG compression blurs dot-matrix edges and reduces OCR accuracy.
+    const dataUrl = canvas.toDataURL('image/png');
     const base64 = dataUrl.replace(/^data:[^;]+;base64,/, '');
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 20000);
