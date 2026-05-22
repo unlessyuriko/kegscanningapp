@@ -152,6 +152,7 @@ Then open `http://localhost:3000`.
 
 | Version | Changes |
 |---------|---------|
+| v14 | Added OpenAI GPT-4.1 Mini and Google Cloud Vision OCR as selectable engines (engine bar pills: GPT-4.1, GCV). API keys stored in OCR Settings. Configurable Gemini endpoint URL for custom gateways. Mobile UX overhaul: `viewport-fit=cover` + `env(safe-area-inset-bottom)` on FAB/footer/toast so buttons are no longer hidden behind iPhone home bar; sticky Submit footer; `100dvh` layout; 44 px min touch targets; modal max-height with scroll. |
 | v13 | SharePoint integration: "Submit & Complete" uploads session data to `heiway.sharepoint.com` (DataP library) via Microsoft Graph API with Azure AD SSO (MSAL.js). Credentials hardcoded; no user config required. PaddleOCR ngrok fix: added `ngrok-skip-browser-warning` header so GitHub Pages can reach a ngrok-tunnelled PaddleOCR server. Ping timeout raised to 5 s. |
 | v11 | PaddleOCR local server integration: `ocr_server.py` Flask server on localhost:5001; `js/ocr.js` auto-detects server on localhost and uses PaddleOCR as primary engine, falls back to Tesseract if unavailable. `requirements.txt` added. |
 | v10 | Logo: replaced text badge with Heineken Myanmar SVG logo (red star + HEINEKEN/Myanmar in forest green, transparent background). OCR: auto-invert for dark/shadowed kegs; inverted-image retry pass before PSM-4 fallback; G→6 and Z→2 added to lot-number digit correction. |

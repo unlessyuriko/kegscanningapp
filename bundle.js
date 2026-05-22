@@ -128,6 +128,7 @@ const Store = (() => {
     apiKey:        'keg_gemini_apikey',
     geminiEndpoint:'keg_gemini_endpoint',
     openaiKey:     'keg_openai_apikey',
+    gcvKey:        'keg_gcv_apikey',
     azureEndpoint: 'keg_azure_endpoint',
     azureKey:     'keg_azure_key',
     session:      'keg_current_session',
@@ -197,6 +198,10 @@ const Store = (() => {
   function getOpenAiKey()        { return localStorage.getItem(KEYS.openaiKey) || ''; }
   function setOpenAiKey(k)       { localStorage.setItem(KEYS.openaiKey, k); }
 
+  // Google Cloud Vision
+  function getGcvKey()           { return localStorage.getItem(KEYS.gcvKey) || ''; }
+  function setGcvKey(k)          { localStorage.setItem(KEYS.gcvKey, k); }
+
   // Azure AI Vision
   function getAzureEndpoint()   { return localStorage.getItem(KEYS.azureEndpoint) || ''; }
   function setAzureEndpoint(u)  { localStorage.setItem(KEYS.azureEndpoint, u); }
@@ -252,6 +257,7 @@ const Store = (() => {
     init, getList, addToList, removeFromList,
     getApiKey, setApiKey, getGeminiEndpoint, setGeminiEndpoint,
     getOpenAiKey, setOpenAiKey,
+    getGcvKey, setGcvKey,
     getAzureEndpoint, setAzureEndpoint, getAzureKey, setAzureKey,
     getOcrEngine, setOcrEngine, getPaddleUrl, setPaddleUrl,
     getMsClientId, setMsClientId, getMsTenantId, setMsTenantId,
@@ -1285,7 +1291,34 @@ const OCR = (() => {
 
   function resetPaddleCache() { paddleAvailable = null; }
 
-  return { init, recognize, resetPaddleCache };
+  async function recognizeGCV(canvas) {
+    const apiKey = Store.getGcvKey();
+    if (!apiKey) throw new Error('No GCV API key');
+    const base64 = canvas.toDataURL('image/jpeg', 0.92).replace(/^data:[^;]+;base64,/, '');
+    const resp = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: [{
+          image: { content: base64 },
+          features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+          imageContext: { languageHints: ['en'] }
+        }]
+      })
+    });
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      throw new Error(`HTTP ${resp.status}: ${errBody.slice(0, 200)}`);
+    }
+    const data = await resp.json();
+    const text = data.responses?.[0]?.fullTextAnnotation?.text
+              || data.responses?.[0]?.textAnnotations?.[0]?.description
+              || '';
+    const status = text.length > 10 ? 'good' : text.length > 2 ? 'medium' : 'low';
+    return { text, confidence: 90, status, engine: 'gcv' };
+  }
+
+  return { init, recognize, recognizeGCV, resetPaddleCache };
 })();
 
 
@@ -1826,6 +1859,35 @@ const Scanner = (() => {
         }
         if (enginePref === 'gemini') {
           Camera.setStatus('error', 'Gemini returned no data — check endpoint and API key in settings');
+          return;
+        }
+      }
+
+      // 2c. Google Cloud Vision OCR → raw text → LLM.extract()
+      const useGCV = enginePref === 'gcv' || (enginePref === 'auto' && Store.getGcvKey() && !Store.getApiKey() && !Store.getOpenAiKey());
+      if (useGCV && Store.getGcvKey()) {
+        Camera.setStatus('reading', 'Reading with Cloud Vision…');
+        try {
+          const gcvResult = await OCR.recognizeGCV(canvas);
+          _showRawOCR(gcvResult.text, 'gcv');
+          if (gcvResult.text) {
+            Camera.setStatus('reading', 'Extracting fields…');
+            const extracted = await LLM.extract(gcvResult.text);
+            populateFields(extracted);
+            checkDuplicate();
+            const fieldsFound = [extracted.lotNumber, extracted.brand, extracted.bestBefore].filter(Boolean).length;
+            Camera.setStatus('ready', `Extracted ${fieldsFound}/3 fields (Cloud Vision)`);
+            return;
+          }
+        } catch (err) {
+          console.warn('GCV failed:', err.message);
+          if (enginePref === 'gcv') {
+            Camera.setStatus('error', `Cloud Vision failed — ${err.message}`);
+            return;
+          }
+        }
+        if (enginePref === 'gcv') {
+          Camera.setStatus('error', 'Cloud Vision returned no text — check API key in settings');
           return;
         }
       }
@@ -2675,6 +2737,7 @@ const Export = (() => {
       const storedEndpoint = localStorage.getItem('keg_gemini_endpoint') || '';
       document.getElementById('gemini-endpoint-input').value = storedEndpoint;
       document.getElementById('openai-key-input').value      = Store.getOpenAiKey();
+      document.getElementById('gcv-key-input').value         = Store.getGcvKey();
       document.getElementById('paddle-url-input').value      = Store.getPaddleUrl();
       document.getElementById('azure-endpoint-input').value = Store.getAzureEndpoint();
       document.getElementById('apikey-input').value         = Store.getAzureKey();
@@ -2717,6 +2780,12 @@ const Export = (() => {
         oEl.textContent = hasOpenAI ? 'Configured' : 'Not configured';
         oEl.className   = 'settings-status ' + (hasOpenAI ? 'active' : 'inactive');
       }
+      const gcvEl = document.getElementById('gcv-status');
+      if (gcvEl) {
+        const hasGCV = !!Store.getGcvKey();
+        gcvEl.textContent = hasGCV ? 'Configured' : 'Not configured';
+        gcvEl.className   = 'settings-status ' + (hasGCV ? 'active' : 'inactive');
+      }
       const pEl = document.getElementById('paddle-status');
       if (pEl) {
         const paddleUrl = Store.getPaddleUrl();
@@ -2738,6 +2807,7 @@ const Export = (() => {
       Store.setApiKey(document.getElementById('gemini-key-input').value.trim());
       Store.setGeminiEndpoint(document.getElementById('gemini-endpoint-input').value.trim());
       Store.setOpenAiKey(document.getElementById('openai-key-input').value.trim());
+      Store.setGcvKey(document.getElementById('gcv-key-input').value.trim());
       Store.setPaddleUrl(document.getElementById('paddle-url-input').value.trim());
       Store.setAzureEndpoint(document.getElementById('azure-endpoint-input').value.trim());
       Store.setAzureKey(document.getElementById('apikey-input').value.trim());

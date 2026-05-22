@@ -234,6 +234,7 @@
             <button class="engine-pill" data-engine="auto"      title="Auto: best available engine">Auto</button>
             <button class="engine-pill" data-engine="openai"    title="GPT-4.1 Mini Vision - configure key in settings">GPT-4.1</button>
             <button class="engine-pill" data-engine="gemini"    title="Gemini Vision AI - configure key in settings">Gemini</button>
+            <button class="engine-pill" data-engine="gcv"       title="Google Cloud Vision OCR - configure key in settings">GCV</button>
             <button class="engine-pill" data-engine="paddle"    title="PaddleOCR - configure server URL in settings">Paddle</button>
             <button class="engine-pill" data-engine="tesseract" title="Offline Tesseract (no internet needed)">Tesseract</button>
           </div>
@@ -334,6 +335,16 @@
             <input type="password" id="openai-key-input" placeholder="sk-…">
           </div>
           <div class="azure-setup-help">Pay-per-use &mdash; get key at <em>platform.openai.com</em> &rarr; API keys</div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Google Cloud Vision OCR</div>
+          <div id="gcv-status" class="settings-status inactive">Not configured</div>
+          <div class="form-group">
+            <label for="gcv-key-input">Cloud Vision API Key</label>
+            <input type="password" id="gcv-key-input" placeholder="AIza&hellip;">
+          </div>
+          <div class="azure-setup-help">Free: 1,000 scans/month &mdash; <em>console.cloud.google.com</em> &rarr; Vision API &rarr; Credentials. Returns raw text, then fields are extracted by the text parser.</div>
         </div>
 
         <div class="settings-section">
