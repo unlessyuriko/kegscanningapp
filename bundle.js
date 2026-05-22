@@ -188,7 +188,7 @@ const Store = (() => {
   // OCR / Gemini
   function getApiKey()           { return localStorage.getItem(KEYS.apiKey) || ''; }
   function setApiKey(k)          { localStorage.setItem(KEYS.apiKey, k); }
-  const DEFAULT_GEMINI_URL = 'https://genai.heineken.com/models/google/gemini-3.1-flash-image-preview:generateContent';
+  const DEFAULT_GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   function getGeminiEndpoint()   { return localStorage.getItem(KEYS.geminiEndpoint) || DEFAULT_GEMINI_URL; }
   function setGeminiEndpoint(u)  { localStorage.setItem(KEYS.geminiEndpoint, u); }
 
