@@ -1598,7 +1598,17 @@ Confidence 0-100: how certain you are each field is correct.`;
       }
 
       const data = await resp.json();
-      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      console.log('Gemini raw response:', JSON.stringify(data).slice(0, 1000));
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text
+               || data.candidates?.[0]?.output
+               || data.output
+               || data.text
+               || data.response
+               || '';
+      if (!raw) {
+        console.warn('Gemini response structure:', Object.keys(data));
+        throw new Error('Unexpected response shape: ' + JSON.stringify(data).slice(0, 300));
+      }
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) return null;
 
