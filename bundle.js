@@ -125,8 +125,9 @@ const Store = (() => {
     shipTo:       'keg_shipto_list',
     kegSize:      'keg_kegsize_list',
     brand:        'keg_brand_list',
-    apiKey:       'keg_gemini_apikey',
-    azureEndpoint:'keg_azure_endpoint',
+    apiKey:        'keg_gemini_apikey',
+    geminiEndpoint:'keg_gemini_endpoint',
+    azureEndpoint: 'keg_azure_endpoint',
     azureKey:     'keg_azure_key',
     session:      'keg_current_session',
     ocrEngine:    'keg_ocr_engine',
@@ -185,8 +186,11 @@ const Store = (() => {
   }
 
   // OCR / Gemini
-  function getApiKey()          { return localStorage.getItem(KEYS.apiKey) || ''; }
-  function setApiKey(k)         { localStorage.setItem(KEYS.apiKey, k); }
+  function getApiKey()           { return localStorage.getItem(KEYS.apiKey) || ''; }
+  function setApiKey(k)          { localStorage.setItem(KEYS.apiKey, k); }
+  const DEFAULT_GEMINI_URL = 'https://genai.heineken.com/models/google/gemini-3.1-flash-image-preview:generateContent';
+  function getGeminiEndpoint()   { return localStorage.getItem(KEYS.geminiEndpoint) || DEFAULT_GEMINI_URL; }
+  function setGeminiEndpoint(u)  { localStorage.setItem(KEYS.geminiEndpoint, u); }
 
   // Azure AI Vision
   function getAzureEndpoint()   { return localStorage.getItem(KEYS.azureEndpoint) || ''; }
@@ -241,7 +245,7 @@ const Store = (() => {
 
   return {
     init, getList, addToList, removeFromList,
-    getApiKey, setApiKey,
+    getApiKey, setApiKey, getGeminiEndpoint, setGeminiEndpoint,
     getAzureEndpoint, setAzureEndpoint, getAzureKey, setAzureKey,
     getOcrEngine, setOcrEngine, getPaddleUrl, setPaddleUrl,
     getMsClientId, setMsClientId, getMsTenantId, setMsTenantId,
@@ -1281,7 +1285,17 @@ const OCR = (() => {
 
 /* ===== llm.js ===== */
 const LLM = (() => {
-  const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+  function _geminiRequest(apiKey) {
+    const endpoint = Store.getGeminiEndpoint();
+    const isGoogle = endpoint.includes('googleapis.com');
+    return {
+      url: isGoogle ? `${endpoint}?key=${apiKey}` : endpoint,
+      headers: isGoogle
+        ? { 'Content-Type': 'application/json' }
+        : { 'Content-Type': 'application/json', 'api-key': apiKey }
+    };
+  }
 
   // Vision prompt — sent WITH the image so Gemini reads the label directly
   const VISION_PROMPT = `You are reading a beer keg label. The image shows a cropped section of a metallic keg surface with dot-matrix machine-printed ink.
@@ -1349,9 +1363,10 @@ Confidence 0-100: how certain you are each field is correct.`;
       .replace('{{OCR_TEXT}}', ocrText);
 
     try {
-      const resp = await fetch(`${API_URL}?key=${apiKey}`, {
+      const { url: _gUrl, headers: _gHeaders } = _geminiRequest(apiKey);
+      const resp = await fetch(_gUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: _gHeaders,
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
@@ -1561,9 +1576,10 @@ Confidence 0-100: how certain you are each field is correct.`;
     const base64 = dataUrl.replace(/^data:[^;]+;base64,/, '');
 
     try {
-      const resp = await fetch(`${API_URL}?key=${apiKey}`, {
+      const { url: _gUrl, headers: _gHeaders } = _geminiRequest(apiKey);
+      const resp = await fetch(_gUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: _gHeaders,
         body: JSON.stringify({
           contents: [{
             parts: [
@@ -2537,8 +2553,10 @@ const Export = (() => {
 
     document.getElementById('fab-apikey').addEventListener('click', () => {
       fabMenu.classList.add('hidden');
-      document.getElementById('gemini-key-input').value     = Store.getApiKey();
-      document.getElementById('paddle-url-input').value     = Store.getPaddleUrl();
+      document.getElementById('gemini-key-input').value      = Store.getApiKey();
+      const storedEndpoint = localStorage.getItem('keg_gemini_endpoint') || '';
+      document.getElementById('gemini-endpoint-input').value = storedEndpoint;
+      document.getElementById('paddle-url-input').value      = Store.getPaddleUrl();
       document.getElementById('azure-endpoint-input').value = Store.getAzureEndpoint();
       document.getElementById('apikey-input').value         = Store.getAzureKey();
       _updateOcrStatuses();
@@ -2593,6 +2611,7 @@ const Export = (() => {
     });
     document.getElementById('save-apikey-btn').addEventListener('click', () => {
       Store.setApiKey(document.getElementById('gemini-key-input').value.trim());
+      Store.setGeminiEndpoint(document.getElementById('gemini-endpoint-input').value.trim());
       Store.setPaddleUrl(document.getElementById('paddle-url-input').value.trim());
       Store.setAzureEndpoint(document.getElementById('azure-endpoint-input').value.trim());
       Store.setAzureKey(document.getElementById('apikey-input').value.trim());
