@@ -127,6 +127,7 @@ const Store = (() => {
     brand:        'keg_brand_list',
     apiKey:        'keg_gemini_apikey',
     geminiEndpoint:'keg_gemini_endpoint',
+    openaiKey:     'keg_openai_apikey',
     azureEndpoint: 'keg_azure_endpoint',
     azureKey:     'keg_azure_key',
     session:      'keg_current_session',
@@ -192,6 +193,10 @@ const Store = (() => {
   function getGeminiEndpoint()   { return localStorage.getItem(KEYS.geminiEndpoint) || DEFAULT_GEMINI_URL; }
   function setGeminiEndpoint(u)  { localStorage.setItem(KEYS.geminiEndpoint, u); }
 
+  // OpenAI
+  function getOpenAiKey()        { return localStorage.getItem(KEYS.openaiKey) || ''; }
+  function setOpenAiKey(k)       { localStorage.setItem(KEYS.openaiKey, k); }
+
   // Azure AI Vision
   function getAzureEndpoint()   { return localStorage.getItem(KEYS.azureEndpoint) || ''; }
   function setAzureEndpoint(u)  { localStorage.setItem(KEYS.azureEndpoint, u); }
@@ -246,6 +251,7 @@ const Store = (() => {
   return {
     init, getList, addToList, removeFromList,
     getApiKey, setApiKey, getGeminiEndpoint, setGeminiEndpoint,
+    getOpenAiKey, setOpenAiKey,
     getAzureEndpoint, setAzureEndpoint, getAzureKey, setAzureKey,
     getOcrEngine, setOcrEngine, getPaddleUrl, setPaddleUrl,
     getMsClientId, setMsClientId, getMsTenantId, setMsTenantId,
@@ -1639,7 +1645,70 @@ Confidence 0-100: how certain you are each field is correct.`;
     }
   }
 
-  return { extract, extractFromImage };
+  async function extractFromImageOpenAI(dataUrl) {
+    const apiKey = Store.getOpenAiKey();
+    if (!apiKey || !dataUrl) return null;
+
+    const brands = Store.getList('brand').join(', ');
+    const prompt = VISION_PROMPT.replace('{{BRANDS}}', brands);
+
+    try {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4.1-mini',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+              { type: 'text', text: prompt }
+            ]
+          }],
+          max_tokens: 512,
+          temperature: 0.1
+        })
+      });
+
+      if (!resp.ok) {
+        const errBody = await resp.text();
+        throw new Error(`HTTP ${resp.status}: ${errBody.slice(0, 200)}`);
+      }
+
+      const data = await resp.json();
+      const raw = data.choices?.[0]?.message?.content || '';
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return null;
+
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      let lot = (parsed.lotNumber || '').replace(/\s/g, '').toUpperCase();
+      if (!/^L\d{7}$/.test(lot)) {
+        const m = lot.match(/[LI1](\d{7})/);
+        lot = m ? 'L' + m[1] : '';
+      }
+
+      const brandList = Store.getList('brand').map(b => b.toUpperCase());
+      const brand = (parsed.brand || '').toUpperCase();
+      const validBrand = brandList.includes(brand) ? brand : '';
+
+      return {
+        lotNumber: lot,
+        brand: validBrand,
+        bestBefore: parsed.bestBefore || '',
+        confidence: parsed.confidence || { lot: 85, brand: 85, bbd: 85 },
+        source: 'openai'
+      };
+    } catch (err) {
+      console.error('OpenAI Vision extraction error:', err);
+      throw err;
+    }
+  }
+
+  return { extract, extractFromImage, extractFromImageOpenAI };
 })();
 
 
@@ -1689,10 +1758,42 @@ const Scanner = (() => {
       const dbgCapture = document.getElementById('ocr-debug-capture');
       if (dbgCapture) { dbgCapture.src = canvas.toDataURL('image/jpeg', 0.85); dbgCapture.style.display = 'block'; }
 
-      const enginePref = Store.getOcrEngine(); // 'auto'|'gemini'|'paddle'|'tesseract'
+      const enginePref = Store.getOcrEngine(); // 'auto'|'gemini'|'openai'|'paddle'|'tesseract'
 
-      // 2. Gemini Vision — used when engine is 'gemini' (forced) or 'auto' with API key.
-      //    Gemini reads the raw photo directly, bypassing Tesseract entirely.
+      // 2a. OpenAI Vision
+      const useOpenAI = enginePref === 'openai' || (enginePref === 'auto' && Store.getOpenAiKey() && !Store.getApiKey());
+      if (useOpenAI && Store.getOpenAiKey()) {
+        Camera.setStatus('reading', 'Reading with GPT-4.1 Mini…');
+        try {
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          const visionResult = await LLM.extractFromImageOpenAI(dataUrl);
+          if (visionResult && (visionResult.lotNumber || visionResult.brand || visionResult.bestBefore)) {
+            const preview = [
+              visionResult.lotNumber  && `Lot: ${visionResult.lotNumber}`,
+              visionResult.brand      && `Brand: ${visionResult.brand}`,
+              visionResult.bestBefore && `BBD: ${visionResult.bestBefore}`
+            ].filter(Boolean).join('\n');
+            _showRawOCR(preview, 'vision');
+            populateFields(visionResult);
+            checkDuplicate();
+            const fieldsFound = [visionResult.lotNumber, visionResult.brand, visionResult.bestBefore].filter(Boolean).length;
+            Camera.setStatus('ready', `Extracted ${fieldsFound}/3 fields (GPT-4.1 Mini)`);
+            return;
+          }
+        } catch (err) {
+          console.warn('OpenAI Vision failed:', err.message);
+          if (enginePref === 'openai') {
+            Camera.setStatus('error', `OpenAI Vision failed — ${err.message}`);
+            return;
+          }
+        }
+        if (enginePref === 'openai') {
+          Camera.setStatus('error', 'OpenAI returned no data — check API key in settings');
+          return;
+        }
+      }
+
+      // 2b. Gemini Vision — used when engine is 'gemini' (forced) or 'auto' with API key.
       //    Necessary because Tesseract's LSTM misreads dot-matrix fonts systematically.
       const useGemini = enginePref === 'gemini' || (enginePref === 'auto' && Store.getApiKey());
       if (useGemini && Store.getApiKey()) {
@@ -1723,7 +1824,6 @@ const Scanner = (() => {
             return;
           }
         }
-        // Forced Gemini mode, returned null (no fields found)
         if (enginePref === 'gemini') {
           Camera.setStatus('error', 'Gemini returned no data — check endpoint and API key in settings');
           return;
@@ -2574,6 +2674,7 @@ const Export = (() => {
       document.getElementById('gemini-key-input').value      = Store.getApiKey();
       const storedEndpoint = localStorage.getItem('keg_gemini_endpoint') || '';
       document.getElementById('gemini-endpoint-input').value = storedEndpoint;
+      document.getElementById('openai-key-input').value      = Store.getOpenAiKey();
       document.getElementById('paddle-url-input').value      = Store.getPaddleUrl();
       document.getElementById('azure-endpoint-input').value = Store.getAzureEndpoint();
       document.getElementById('apikey-input').value         = Store.getAzureKey();
@@ -2610,6 +2711,12 @@ const Export = (() => {
         gEl.textContent = hasGemini ? 'Configured' : 'Not configured';
         gEl.className   = 'settings-status ' + (hasGemini ? 'active' : 'inactive');
       }
+      const oEl = document.getElementById('openai-status');
+      if (oEl) {
+        const hasOpenAI = !!Store.getOpenAiKey();
+        oEl.textContent = hasOpenAI ? 'Configured' : 'Not configured';
+        oEl.className   = 'settings-status ' + (hasOpenAI ? 'active' : 'inactive');
+      }
       const pEl = document.getElementById('paddle-status');
       if (pEl) {
         const paddleUrl = Store.getPaddleUrl();
@@ -2630,6 +2737,7 @@ const Export = (() => {
     document.getElementById('save-apikey-btn').addEventListener('click', () => {
       Store.setApiKey(document.getElementById('gemini-key-input').value.trim());
       Store.setGeminiEndpoint(document.getElementById('gemini-endpoint-input').value.trim());
+      Store.setOpenAiKey(document.getElementById('openai-key-input').value.trim());
       Store.setPaddleUrl(document.getElementById('paddle-url-input').value.trim());
       Store.setAzureEndpoint(document.getElementById('azure-endpoint-input').value.trim());
       Store.setAzureKey(document.getElementById('apikey-input').value.trim());

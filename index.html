@@ -230,6 +230,7 @@
           <span class="engine-bar-lbl">OCR</span>
           <div class="engine-pills">
             <button class="engine-pill" data-engine="auto"      title="Auto: best available engine">Auto</button>
+            <button class="engine-pill" data-engine="openai"    title="GPT-4.1 Mini Vision - configure key in settings">GPT-4.1</button>
             <button class="engine-pill" data-engine="gemini"    title="Gemini Vision AI - configure key in settings">Gemini</button>
             <button class="engine-pill" data-engine="paddle"    title="PaddleOCR - configure server URL in settings">Paddle</button>
             <button class="engine-pill" data-engine="tesseract" title="Offline Tesseract (no internet needed)">Tesseract</button>
@@ -321,6 +322,16 @@
             <input type="text" id="gemini-endpoint-input" placeholder="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent">
           </div>
           <div class="azure-setup-help">Free: 1,500 scans/day &mdash; get key at <em>aistudio.google.com</em> &rarr; Get API key</div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">OpenAI Vision (GPT-4.1 Mini)</div>
+          <div id="openai-status" class="settings-status inactive">Not configured</div>
+          <div class="form-group">
+            <label for="openai-key-input">OpenAI API Key</label>
+            <input type="password" id="openai-key-input" placeholder="sk-…">
+          </div>
+          <div class="azure-setup-help">Pay-per-use &mdash; get key at <em>platform.openai.com</em> &rarr; API keys</div>
         </div>
 
         <div class="settings-section">
