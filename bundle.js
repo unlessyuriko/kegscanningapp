@@ -1592,8 +1592,9 @@ Confidence 0-100: how certain you are each field is correct.`;
       });
 
       if (!resp.ok) {
-        console.error('Gemini Vision error:', resp.status, await resp.text());
-        return null;
+        const errBody = await resp.text();
+        console.error('Gemini Vision HTTP error:', resp.status, errBody);
+        throw new Error(`HTTP ${resp.status}: ${errBody.slice(0, 200)}`);
       }
 
       const data = await resp.json();
@@ -1704,10 +1705,17 @@ const Scanner = (() => {
           }
         } catch (err) {
           console.warn('Gemini Vision failed:', err.message);
+          if (enginePref === 'gemini') {
+            const msg = err.message.includes('Failed to fetch')
+              ? 'Gemini Vision failed — CORS or network error (endpoint may block browser requests)'
+              : `Gemini Vision failed — ${err.message}`;
+            Camera.setStatus('error', msg);
+            return;
+          }
         }
-        // Forced Gemini mode: don't fall through to Tesseract
+        // Forced Gemini mode, returned null (no fields found)
         if (enginePref === 'gemini') {
-          Camera.setStatus('error', 'Gemini Vision failed — check API key in settings');
+          Camera.setStatus('error', 'Gemini returned no data — check endpoint and API key in settings');
           return;
         }
       }
