@@ -1,7 +1,12 @@
 {
+  "version": 2,
   "functions": {
     "api/*.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "routes": [
+    { "src": "/api/health", "dest": "/api/health.js" },
+    { "src": "/api/insert", "dest": "/api/insert.js" }
+  ]
 }
