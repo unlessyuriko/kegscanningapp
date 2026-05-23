@@ -1,15 +1,6 @@
 {
-  "version": 2,
-  "builds": [
-    { "src": "api/insert.js", "use": "@vercel/node" },
-    { "src": "api/health.js", "use": "@vercel/node" }
-  ],
-  "routes": [
-    { "src": "/api/health", "dest": "/api/health.js" },
-    { "src": "/api/insert", "dest": "/api/insert.js" }
-  ],
   "functions": {
-    "api/insert.js": {
+    "api/*.js": {
       "maxDuration": 30
     }
   }
