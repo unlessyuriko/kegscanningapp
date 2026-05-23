@@ -1,38 +1,46 @@
-const sql = require('mssql');
+const sql        = require('mssql');
+const { ClientSecretCredential } = require('@azure/identity');
 
-const config = {
-  server:   process.env.SYNAPSE_SERVER,
-  port:     1433,
-  database: process.env.SYNAPSE_DB,
-  user:     process.env.SYNAPSE_USER,
-  password: process.env.SYNAPSE_PASSWORD,
-  options: {
-    encrypt:                true,
-    trustServerCertificate: true,   // required for Synapse Dedicated SQL via tedious
-    enableArithAbort:       true,
-    connectTimeout:         30000,
-    requestTimeout:         30000,
-    cryptoCredentialsDetails: { minVersion: 'TLSv1' },
-  },
-  pool: {
-    max: 3,
-    min: 0,
-    idleTimeoutMillis: 30000,
-  },
-};
+const credential = new ClientSecretCredential(
+  process.env.AZURE_TENANT_ID,
+  process.env.AZURE_CLIENT_ID,
+  process.env.AZURE_CLIENT_SECRET
+);
 
-let pool = null;
+// Cache pool + token expiry so warm invocations skip reconnect
+let pool        = null;
+let tokenExpiry = 0;
+
 async function getPool() {
-  if (pool) {
-    try {
-      // quick liveness check
-      await pool.request().query('SELECT 1');
-      return pool;
-    } catch (_) {
-      pool = null;
-    }
-  }
-  pool = await new sql.ConnectionPool(config).connect();
+  const now = Date.now();
+
+  // Refresh if token expires within 5 minutes
+  if (pool && tokenExpiry - now > 5 * 60 * 1000) return pool;
+
+  // Close stale pool if any
+  if (pool) { try { await pool.close(); } catch (_) {} pool = null; }
+
+  const tokenRes = await credential.getToken('https://database.windows.net/.default');
+  tokenExpiry = tokenRes.expiresOnTimestamp;
+
+  pool = await new sql.ConnectionPool({
+    server:   process.env.SYNAPSE_SERVER,
+    port:     1433,
+    database: process.env.SYNAPSE_DB,
+    options: {
+      encrypt:                true,
+      trustServerCertificate: true,
+      enableArithAbort:       true,
+      connectTimeout:         30000,
+      requestTimeout:         30000,
+    },
+    authentication: {
+      type:    'azure-active-directory-access-token',
+      options: { token: tokenRes.token },
+    },
+    pool: { max: 3, min: 0, idleTimeoutMillis: 30000 },
+  }).connect();
+
   return pool;
 }
 
@@ -43,7 +51,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 
   const { session, kegs, submittedBy, batchId } = req.body || {};
 
@@ -88,8 +96,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, inserted: kegs.length });
 
   } catch (err) {
-    console.error('Synapse insert error:', err.message, err.code, err.originalError?.message);
-    pool = null; // reset pool on any error
+    console.error('Synapse insert error:', err.message, err.code);
+    pool = null; tokenExpiry = 0; // reset on error so next call reconnects
     return res.status(500).json({ error: err.message, code: err.code });
   }
 };
