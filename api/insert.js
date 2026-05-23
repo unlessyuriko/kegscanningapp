@@ -56,43 +56,53 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 
-  const { session, kegs, submittedBy, batchId } = req.body || {};
+  const { session, kegs, submittedBy } = req.body || {};
 
   if (!session || !Array.isArray(kegs) || kegs.length === 0) {
     return res.status(400).json({ error: 'session and kegs[] are required' });
   }
 
-  const rpmType = ((session.type || 'keg')[0].toUpperCase() + (session.type || 'keg').slice(1)).slice(0, 10);
-  const now     = toMMT(new Date());
-  const by      = (submittedBy || 'KegScanApp').slice(0, 100);
+  const now  = toMMT(new Date());
+  const by   = (submittedBy || 'KegScanApp').slice(0, 100);
+
+  // Session-level values (same for every row in this batch)
+  const truck       = (session.truckNumber || '').slice(0, 50) || null;
+  const shipTo      = (session.shipTo      || '').slice(0, 100) || null;
+  const scannedDate = session.date ? new Date(session.date + 'T00:00:00') : null;
 
   try {
     const db = await getPool();
 
-    for (const [idx, keg] of kegs.entries()) {
+    for (const keg of kegs) {
+      // Build MMT time string (HH:mm:ss) from the ISO timestamp
+      let timeVal = null;
+      if (keg.timestamp) {
+        const d = toMMT(new Date(keg.timestamp));
+        timeVal = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+      }
+
       await db.request()
-        .input('ScanId',         sql.BigInt,       idx + 1)
-        .input('LotNumber',      sql.VarChar(50),  (keg.lotNumber  || '').slice(0, 50)  || null)
-        .input('BestBeforeDate', sql.Date,         keg.bestBefore  ? new Date(keg.bestBefore) : null)
-        .input('Brand',          sql.VarChar(100), (keg.brand      || '').slice(0, 100) || null)
-        .input('ScanTime',       sql.DateTime2,    keg.timestamp   ? toMMT(new Date(keg.timestamp)) : now)
-        .input('CreatedBy',      sql.VarChar(100), by)
-        .input('CreatedDate',    sql.DateTime2,    now)
-        .input('ModifiedDate',   sql.DateTime2,    now)
-        .input('SourceSystem',   sql.VarChar(50),  'KegScannerApp')
-        .input('BatchId',        sql.VarChar(100), (batchId        || '').slice(0, 100) || null)
-        .input('rpm_type',       sql.VarChar(10),  rpmType)
-        .input('truck_number',   sql.NVarChar(10), (session.truckNumber || '').slice(0, 10) || null)
-        .input('uom',            sql.NVarChar(10), ((keg.kegSize || session.kegSize) || '').slice(0, 10) || null)
+        .input('Edit_Status',   sql.VarChar(50),  (keg.status  || 'ok').slice(0, 50))
+        .input('Lot_Number',    sql.VarChar(50),  (keg.lotNumber  || '').slice(0, 50)  || null)
+        .input('Brand',         sql.VarChar(100), (keg.brand      || '').slice(0, 100) || null)
+        .input('Best_Before',   sql.Date,         keg.bestBefore ? new Date(keg.bestBefore + 'T00:00:00') : null)
+        .input('Keg_Size',      sql.VarChar(50),  (keg.kegSize    || '').slice(0, 50)  || null)
+        .input('TRUCK',         sql.VarChar(50),  truck)
+        .input('Scanned_Date',  sql.Date,         scannedDate)
+        .input('Ship_To',       sql.VarChar(100), shipTo)
+        .input('Time',          sql.VarChar(8),   timeVal)
+        .input('Created_By',    sql.VarChar(100), by)
+        .input('Created_Date',  sql.DateTime2,    now)
+        .input('Modified_Date', sql.DateTime2,    now)
         .query(`
-          INSERT INTO [stg].[KegScanRaw]
-            ([ScanId],[LotNumber],[BestBeforeDate],[Brand],[ScanTime],
-             [CreatedBy],[CreatedDate],[ModifiedDate],[SourceSystem],
-             [BatchId],[rpm_type],[truck_number],[uom])
+          INSERT INTO [stg].[KegScan]
+            ([Edit_Status],[Lot_Number],[Brand],[Best_Before],[Keg_Size],
+             [TRUCK],[Scanned_Date],[Ship_To],[Time],
+             [Created_By],[Created_Date],[Modified_Date])
           VALUES
-            (@ScanId,@LotNumber,@BestBeforeDate,@Brand,@ScanTime,
-             @CreatedBy,@CreatedDate,@ModifiedDate,@SourceSystem,
-             @BatchId,@rpm_type,@truck_number,@uom)
+            (@Edit_Status,@Lot_Number,@Brand,@Best_Before,@Keg_Size,
+             @TRUCK,@Scanned_Date,@Ship_To,@Time,
+             @Created_By,@Created_Date,@Modified_Date)
         `);
     }
 

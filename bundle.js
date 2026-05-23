@@ -5,10 +5,17 @@
  * Selection is stored as fractions (0-1) of the camera viewport dimensions.
  */
 const CropSelector = (() => {
-  const DEFAULT = { left: 0.175, top: 0.25, width: 0.65, height: 0.50 };
   const MIN_W = 0.12, MIN_H = 0.08;
 
-  let sel = { ...DEFAULT };
+  function _defaultSel() {
+    // On portrait mobile: wider, shorter box to match keg label aspect ratio
+    const narrow = window.innerWidth <= 768 && window.innerWidth < window.innerHeight;
+    return narrow
+      ? { left: 0.05, top: 0.35, width: 0.90, height: 0.28 }
+      : { left: 0.175, top: 0.25, width: 0.65, height: 0.50 };
+  }
+
+  let sel = _defaultSel();
   let guideEl = null;
   let vpEl = null;
   let dragging = null;   // null | 'move' | 'tl' | 'tr' | 'bl' | 'br'
@@ -106,7 +113,7 @@ const CropSelector = (() => {
   }
 
   function reset() {
-    sel = { ...DEFAULT };
+    sel = _defaultSel();
     _render();
   }
 
@@ -139,11 +146,25 @@ const Store = (() => {
     msTenantId:   'keg_ms_tenant_id',
   };
 
-  const DATA_VERSION = '4';
+  const DATA_VERSION = '6';
   const VERSION_KEY  = 'keg_data_version';
 
   const DEFAULTS = {
-    shipTo:  ['Warehouse A', 'Warehouse B', 'Distribution Center 1'],
+    shipTo: [
+      'ACE Myanmar Mandalay','ACE Myanmar Yangon','ATSM Homalin','ATSM Kale',
+      'ATSM Monywa','ATSM Shwebo','Aye Yan Aung Taunggyi','E Enterprises Magway',
+      'E Enterprises Mandalay','E Enterprises Pakokku','E Enterprises Yangon',
+      'Five Crown Yangon','Jade Flower Kawthoung','Kaung Su Han Yangon',
+      'Lin Yone Thit Dawei','Mandalar Standard Mandalay','Mandalar Standard Pyinoolwin',
+      'Mantayar Family HpaAn','Mantayar Family Myawaddy','Northern ABC Lashio',
+      'Northern ABC Mandalay','Northern ABC Mawlamyine','Northern ABC Meiktila',
+      'Northern ABC Muse','Northern ABC Myitkyina','Royal Tun Tauk Bago',
+      'Royal Tun Tauk Pyay','Royal Tun Tauk Taungoo','Royal Tun Tauk Yangon',
+      'San Marlar Myeik','Silver Sea Mandalay','Thaung Yinn Thitsar Hinthada',
+      'Thaung Yinn Thitsar Naypyitaw','Thaung Yinn Thitsar Pathein',
+      'Thaung Yinn Thitsar Pyapon','Thaung Yinn Thitsar Yangon',
+      'Thu Htet Aung Family Kengtung','Thu Htet Aung Family Tachileik',
+    ],
     kegSize: ['10L', '20L', '30L'],
     brand:   ['TIGER', 'BAWDAR', 'HEINEKEN', 'ABC'],
   };
@@ -162,6 +183,7 @@ const Store = (() => {
     if (storedVersion !== DATA_VERSION) {
       _set(KEYS.brand, DEFAULTS.brand);
       _set(KEYS.kegSize, DEFAULTS.kegSize);
+      _set(KEYS.shipTo, DEFAULTS.shipTo);
       localStorage.setItem(VERSION_KEY, DATA_VERSION);
     }
     const storedSizes = _get(KEYS.kegSize, []);
@@ -254,8 +276,11 @@ const Store = (() => {
     s.kegs = s.kegs.filter(k => k.id !== id);
     s.scannedCount = s.kegs.length; setSession(s);
   }
-  function isDuplicate(lot, brand, bbd) {
-    return getKegs().some(k => k.lotNumber === lot && k.brand === brand && k.bestBefore === bbd);
+  function isDuplicate(lot) {
+    const s = getSession();
+    if (!s) return false;
+    // All kegs in session share the same date+shipTo; duplicate = same lot number
+    return getKegs().some(k => k.lotNumber === lot);
   }
 
   return {
@@ -346,15 +371,16 @@ const Admin = (() => {
   }
 
   function populateDropdowns() {
-    _fillSelect('ship-to', Store.getList('shipTo'), 'Select destination…');
-    _fillSelect('keg-size', Store.getList('kegSize'), 'Select size…');
+    // ship-to is now a combobox (hidden input) — skip it here
+    const kegSizes = Store.getList('kegSize').slice().sort((a, b) => (parseFloat(b) || 0) - (parseFloat(a) || 0));
+    _fillSelect('keg-size', kegSizes, 'Select size…');
     _fillSelect('field-brand', Store.getList('brand'), 'Select brand…');
-    _fillSelect('field-kegsize', Store.getList('kegSize'), 'Select size…');
+    _fillSelect('field-kegsize', kegSizes, 'Select size…');
   }
 
   function _fillSelect(id, items, placeholder) {
     const sel = document.getElementById(id);
-    if (!sel) return;
+    if (!sel || sel.tagName !== 'SELECT') return;
     const current = sel.value;
     sel.innerHTML = `<option value="">${placeholder}</option>` +
       items.map(i => `<option value="${i}"${i === current ? ' selected' : ''}>${i}</option>`).join('');
@@ -1994,42 +2020,56 @@ const Scanner = (() => {
 
   function checkDuplicate() {
     const lot = document.getElementById('field-lot').value.trim();
-    const brand = document.getElementById('field-brand').value;
-    const bbd = document.getElementById('field-bbd').value;
     const warning = document.getElementById('duplicate-warning');
-
-    if (lot && brand && bbd && Store.isDuplicate(lot, brand, bbd)) {
-      warning.classList.remove('hidden');
-    } else {
-      warning.classList.add('hidden');
-    }
+    const isDup = lot && Store.isDuplicate(lot);
+    warning.classList.toggle('hidden', !isDup);
+    validateFields(); // re-evaluate button state when duplicate status changes
   }
 
   function validateFields() {
-    const lot = document.getElementById('field-lot').value.trim();
-    const btn = document.getElementById('add-scan-btn');
-    btn.disabled = !lot;
+    const lot   = document.getElementById('field-lot').value.trim();
+    const brand = document.getElementById('field-brand').value;
+    const bbd   = document.getElementById('field-bbd').value;
+    const isDup = lot && Store.isDuplicate(lot);
+    const btn   = document.getElementById('add-scan-btn');
+    const hint  = document.getElementById('field-hint');
+    const allFilled = !!(lot && brand && bbd);
+    btn.disabled = !(allFilled && !isDup);
+    document.getElementById('duplicate-warning').classList.toggle('hidden', !isDup);
+    if (isDup) {
+      hint.classList.add('hidden');
+    } else if (!allFilled) {
+      const missing = [];
+      if (!lot)   missing.push('Lot Number');
+      if (!brand) missing.push('Brand');
+      if (!bbd)   missing.push('Best Before date');
+      hint.textContent = 'Required: ' + missing.join(', ') + '.';
+      hint.classList.remove('hidden');
+    } else {
+      hint.classList.add('hidden');
+    }
   }
 
   function handleAddScan() {
-    const lot = document.getElementById('field-lot').value.trim();
-    const brand = document.getElementById('field-brand').value;
-    const bbd = document.getElementById('field-bbd').value;
+    const lot     = document.getElementById('field-lot').value.trim();
+    const brand   = document.getElementById('field-brand').value;
+    const bbd     = document.getElementById('field-bbd').value;
     const kegSize = document.getElementById('field-kegsize').value;
 
-    if (!lot) return;
+    if (!lot || !brand || !bbd) return;
+    if (Store.isDuplicate(lot)) { _toast('Duplicate lot — already scanned', 'error'); return; }
 
     const keg = Store.addKeg({
       lotNumber: lot,
-      brand: brand,
+      brand:     brand,
       bestBefore: bbd,
-      kegSize: kegSize
+      kegSize:   kegSize
     });
 
     clearFields();
     Table.render();
     updateCounter();
-    _toast('Keg added âœ“', 'success');
+    _toast('Keg added ✓', 'success');
   }
 
   function clearFields() {
@@ -2049,6 +2089,7 @@ const Scanner = (() => {
     });
 
     document.getElementById('duplicate-warning').classList.add('hidden');
+    document.getElementById('field-hint').classList.add('hidden');
     document.getElementById('add-scan-btn').disabled = true;
     const rawWrap = document.querySelector('.ocr-raw-wrap');
     if (rawWrap) rawWrap.classList.add('hidden');
@@ -2061,7 +2102,17 @@ const Scanner = (() => {
     const target = session.targetCount || 0;
 
     document.getElementById('scanned-count').textContent = count;
-    document.getElementById('target-display').textContent = target || '—';
+
+    // Show " / N" only when a target is set
+    const sep = document.getElementById('target-sep');
+    const tgt = document.getElementById('target-display');
+    if (target > 0) {
+      if (sep) sep.style.display = '';
+      if (tgt) tgt.textContent = target;
+    } else {
+      if (sep) sep.style.display = 'none';
+      if (tgt) tgt.textContent = '';
+    }
 
     // Progress ring
     const pct = target > 0 ? Math.min(count / target, 1) : 0;
@@ -2070,20 +2121,22 @@ const Scanner = (() => {
     const ring = document.getElementById('progress-ring-fill');
     ring.style.strokeDashoffset = offset;
 
-    // Color based on progress
-    let color = 'var(--red)';
-    if (pct >= 1) color = 'var(--green)';
-    else if (pct >= 0.5) color = 'var(--orange)';
-    ring.style.stroke = color;
-
-    document.getElementById('progress-pct').textContent =
-      target > 0 ? Math.round(pct * 100) + '%' : '';
-
-    // Counter color
+    // When no target: show green ring (full) with no percentage text
     const counterVal = document.querySelector('.counter-value');
-    if (pct >= 1) counterVal.style.color = 'var(--green)';
-    else if (pct >= 0.5) counterVal.style.color = 'var(--orange)';
-    else counterVal.style.color = 'var(--red)';
+    if (target > 0) {
+      let color = 'var(--red)';
+      if (pct >= 1) color = 'var(--green)';
+      else if (pct >= 0.5) color = 'var(--orange)';
+      ring.style.stroke = color;
+      ring.style.strokeDashoffset = offset;
+      if (counterVal) counterVal.style.color = color;
+      document.getElementById('progress-pct').textContent = Math.round(pct * 100) + '%';
+    } else {
+      ring.style.stroke = 'var(--green)';
+      ring.style.strokeDashoffset = circumference; // empty ring when no target
+      if (counterVal) counterVal.style.color = 'var(--green)';
+      document.getElementById('progress-pct').textContent = '';
+    }
   }
 
   function _showRawOCR(text, engine) {
@@ -2114,6 +2167,7 @@ const Scanner = (() => {
 /* ===== table.js ===== */
 const Table = (() => {
   let editingId = null;
+  let _listenerBound = false;
 
   function render() {
     const kegs = Store.getKegs();
@@ -2142,61 +2196,55 @@ const Table = (() => {
       const statusLabel = k.status === 'edited' ? 'Edited' : 'OK';
 
       if (editingId === k.id) {
-        return `<tr class="editing-row">
+        return `<tr class=”editing-row”>
           <td>${i + 1}</td>
-          <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-          <td><input type="text" class="edit-input" id="edit-lot-${k.id}" value="${_esc(k.lotNumber)}"></td>
-          <td><input type="text" class="edit-input" id="edit-brand-${k.id}" value="${_esc(k.brand)}"></td>
-          <td><input type="date" class="edit-input" id="edit-bbd-${k.id}" value="${k.bestBefore}"></td>
-          <td><input type="text" class="edit-input" id="edit-ks-${k.id}" value="${_esc(k.kegSize)}"></td>
-          <td>${truck}</td>
+          <td><span class=”status-badge ${statusClass}”>${statusLabel}</span></td>
           <td>${sDate}</td>
-          <td>${shipTo}</td>
           <td>${time}</td>
-          <td class="row-actions">
-            <button class="row-btn save" data-id="${k.id}">âœ“</button>
-            <button class="row-btn cancel" data-id="${k.id}">âœ•</button>
+          <td>${truck}</td>
+          <td>${shipTo}</td>
+          <td><input type=”text” class=”edit-input” id=”edit-lot-${k.id}” value=”${_esc(k.lotNumber)}”></td>
+          <td><input type=”text” class=”edit-input” id=”edit-brand-${k.id}” value=”${_esc(k.brand)}”></td>
+          <td><input type=”date” class=”edit-input” id=”edit-bbd-${k.id}” value=”${k.bestBefore}”></td>
+          <td><input type=”text” class=”edit-input” id=”edit-ks-${k.id}” value=”${_esc(k.kegSize)}”></td>
+          <td class=”row-actions”>
+            <button class=”row-btn save” data-id=”${k.id}”>Save</button>
+            <button class=”row-btn cancel” data-id=”${k.id}”>Cancel</button>
           </td>
         </tr>`;
       }
 
       return `<tr>
         <td>${i + 1}</td>
-        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td><span class=”status-badge ${statusClass}”>${statusLabel}</span></td>
+        <td>${sDate}</td>
+        <td>${time}</td>
+        <td>${truck}</td>
+        <td>${shipTo}</td>
         <td>${_esc(k.lotNumber)}</td>
         <td>${_esc(k.brand)}</td>
         <td>${k.bestBefore || '—'}</td>
         <td>${_esc(k.kegSize)}</td>
-        <td>${truck}</td>
-        <td>${sDate}</td>
-        <td>${shipTo}</td>
-        <td>${time}</td>
-        <td class="row-actions">
-          <button class="row-btn edit" data-id="${k.id}">âœŽ</button>
-          <button class="row-btn delete" data-id="${k.id}">âœ•</button>
+        <td class=”row-actions”>
+          <button class=”row-btn edit” data-id=”${k.id}”>Edit</button>
+          <button class=”row-btn delete” data-id=”${k.id}”>Del</button>
         </td>
       </tr>`;
     }).join('');
 
-    // Bind row actions
-    tbody.querySelectorAll('.row-btn.edit').forEach(btn => {
-      btn.addEventListener('click', () => { editingId = btn.dataset.id; render(); });
-    });
-    tbody.querySelectorAll('.row-btn.delete').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (confirm('Delete this keg?')) {
-          Store.deleteKeg(btn.dataset.id);
-          render();
-          Scanner.updateCounter();
-        }
+    // Single delegated listener on tbody — survives every innerHTML re-set, icons come from CSS
+    if (!_listenerBound) {
+      _listenerBound = true;
+      tbody.addEventListener('click', function(e) {
+        const btn = e.target.closest('.row-btn');
+        if (!btn) return;
+        const id = btn.dataset.id;
+        if (btn.classList.contains('edit'))   { editingId = id; render(); }
+        if (btn.classList.contains('delete')) { Store.deleteKeg(id); render(); Scanner.updateCounter(); Scanner._toast('Keg removed', 'info'); }
+        if (btn.classList.contains('save'))   { _saveEdit(id); }
+        if (btn.classList.contains('cancel')) { editingId = null; render(); }
       });
-    });
-    tbody.querySelectorAll('.row-btn.save').forEach(btn => {
-      btn.addEventListener('click', () => _saveEdit(btn.dataset.id));
-    });
-    tbody.querySelectorAll('.row-btn.cancel').forEach(btn => {
-      btn.addEventListener('click', () => { editingId = null; render(); });
-    });
+    }
   }
 
   function _saveEdit(id) {
@@ -2713,15 +2761,80 @@ const Export = (() => {
       return sel ? sel.dataset.type : 'keg';
     }
 
+    // ===== SHIP TO COMBOBOX =====
+    // Dropdown is appended to <body> with position:fixed to avoid being
+    // clipped by the modal card's overflow-y:auto scroll container.
+    (function initShipToCombobox() {
+      const searchInput = document.getElementById('ship-to-search');
+      const hiddenInput = document.getElementById('ship-to');
+      const combobox    = document.getElementById('shipto-combobox');
+      if (!searchInput) return;
+
+      // Create dropdown in body so it isn't clipped by modal overflow
+      const dropdown = document.createElement('div');
+      dropdown.className = 'shipto-dropdown hidden';
+      document.body.appendChild(dropdown);
+
+      function position() {
+        const r = searchInput.getBoundingClientRect();
+        dropdown.style.position = 'fixed';
+        dropdown.style.top      = (r.bottom + 4) + 'px';
+        dropdown.style.left     = r.left + 'px';
+        dropdown.style.width    = r.width + 'px';
+        dropdown.style.zIndex   = '9999';
+      }
+
+      function open(filter) {
+        const items = Store.getList('shipTo');
+        const q = (filter || '').toLowerCase().trim();
+        const filtered = q ? items.filter(i => i.toLowerCase().includes(q)) : items;
+        dropdown.innerHTML = filtered.length === 0
+          ? '<div class="shipto-no-results">No matches found</div>'
+          : filtered.map(item =>
+              `<div class="shipto-option" data-value="${item.replace(/"/g,'&quot;')}">${item}</div>`
+            ).join('');
+        dropdown.querySelectorAll('.shipto-option').forEach(opt => {
+          opt.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            hiddenInput.value = opt.dataset.value;
+            searchInput.value = opt.dataset.value;
+            if (combobox) combobox.classList.remove('shipto-input-error');
+            dropdown.classList.add('hidden');
+          });
+        });
+        position();
+        dropdown.classList.remove('hidden');
+      }
+
+      function close() { dropdown.classList.add('hidden'); }
+
+      searchInput.addEventListener('focus',  () => open(searchInput.value));
+      searchInput.addEventListener('input',  () => { hiddenInput.value = ''; open(searchInput.value); });
+      searchInput.addEventListener('blur',   () => setTimeout(close, 200));
+      searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') { close(); searchInput.blur(); } });
+      window.addEventListener('scroll', () => { if (!dropdown.classList.contains('hidden')) position(); }, true);
+      window.addEventListener('resize', () => { if (!dropdown.classList.contains('hidden')) position(); });
+    })();
+
     // ===== SESSION FORM =====
     document.getElementById('session-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const scannerType = getSelectedType();
+
+      // Validate Ship To (hidden input required since HTML won't validate it)
+      const shipToVal = document.getElementById('ship-to').value;
+      if (!shipToVal) {
+        const combobox = document.getElementById('shipto-combobox');
+        if (combobox) combobox.classList.add('shipto-input-error');
+        document.getElementById('ship-to-search').focus();
+        return;
+      }
+
       const session = {
         scannerType,
         date:         document.getElementById('session-date').value,
         truckNumber:  document.getElementById('truck-number').value.trim(),
-        shipTo:       document.getElementById('ship-to').value,
+        shipTo:       shipToVal,
         kegSize:      document.getElementById('keg-size').value,
         targetCount:  parseInt(document.getElementById('target-count').value) || 0,
         scannedCount: 0,
@@ -2758,6 +2871,8 @@ const Export = (() => {
         document.getElementById('session-date').value  = session.date        || '';
         document.getElementById('truck-number').value  = session.truckNumber || '';
         document.getElementById('ship-to').value       = session.shipTo      || '';
+        const srch = document.getElementById('ship-to-search');
+        if (srch) srch.value = session.shipTo || '';
         document.getElementById('keg-size').value      = session.kegSize     || '';
         document.getElementById('target-count').value  = session.targetCount || '';
 
@@ -2780,12 +2895,6 @@ const Export = (() => {
     // ===== CAMERA SWITCH =====
     document.getElementById('switch-camera-btn').addEventListener('click', () => {
       Camera.switchCamera();
-    });
-
-    // ===== RESET CROP AREA =====
-    document.getElementById('reset-crop-btn').addEventListener('click', () => {
-      CropSelector.reset();
-      Scanner._toast('Scan area reset', 'info');
     });
 
     // ===== SETTINGS FAB =====
