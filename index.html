@@ -118,8 +118,14 @@
           <input type="text" id="truck-number" placeholder="e.g. 1H/7767" required>
         </div>
         <div class="form-group">
-          <label for="ship-to">Ship To</label>
-          <select id="ship-to" required><option value="">Select destination&hellip;</option></select>
+          <label for="ship-to-search">Ship To</label>
+          <div class="shipto-combobox" id="shipto-combobox">
+            <div class="shipto-input-wrap">
+              <svg class="shipto-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="ship-to-search" placeholder="Search destination&hellip;" autocomplete="off">
+              <input type="hidden" id="ship-to">
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label for="keg-size">Keg Size</label>
@@ -179,24 +185,24 @@
       <div class="header-left">
         <button class="btn btn-back" id="back-btn" title="Back to Setup">&#8592; Back</button>
         <img src="logo-star.svg" alt="Heineken Myanmar" class="hk-logo-star">
-        <div class="session-info">
-          <span class="session-chip type-chip" id="hdr-type"></span>
-          <span class="session-chip" id="hdr-date"></span>
-          <span class="session-chip" id="hdr-truck"></span>
-          <span class="session-chip" id="hdr-shipto"></span>
-        </div>
+      </div>
+      <div class="session-info">
+        <span class="session-chip type-chip" id="hdr-type"></span>
+        <span class="session-chip" id="hdr-date"></span>
+        <span class="session-chip" id="hdr-truck"></span>
+        <span class="session-chip" id="hdr-shipto"></span>
       </div>
       <div class="header-right">
         <div class="counter-badge" id="counter-badge">
           <span class="counter-label">Scanned</span>
-          <span class="counter-value"><span id="scanned-count">0</span> / <span id="target-display">&#8212;</span></span>
+          <span class="counter-value"><span id="scanned-count">0</span><span id="target-sep" style="display:none"> / </span><span id="target-display"></span></span>
         </div>
         <div class="progress-ring-wrap">
-          <svg class="progress-ring" width="48" height="48">
+          <svg class="progress-ring" viewBox="0 0 48 48" width="48" height="48">
             <circle class="progress-ring-bg" cx="24" cy="24" r="20"/>
             <circle class="progress-ring-fill" id="progress-ring-fill" cx="24" cy="24" r="20"/>
           </svg>
-          <span class="progress-pct" id="progress-pct">0%</span>
+          <span class="progress-pct" id="progress-pct"></span>
         </div>
         <!-- Signed-in user chip in header -->
         <div class="when-authed hidden header-auth-chip">
@@ -223,9 +229,9 @@
             <span id="quality-text">&#8212;</span>
           </div>
           <div class="camera-controls">
-            <button class="btn btn-capture" id="capture-btn" title="Capture &amp; Extract"><span class="capture-ring"></span><span class="capture-dot"></span></button>
             <button class="btn btn-icon-sm" id="switch-camera-btn" title="Switch Camera">&#128260;</button>
-            <button class="btn btn-icon-sm" id="reset-crop-btn" title="Reset scan area to default">&#10226;</button>
+            <button class="btn btn-capture" id="capture-btn" title="Capture &amp; Extract"><span class="capture-ring"></span><span class="capture-dot"></span></button>
+            <div class="camera-controls-spacer"></div>
           </div>
         </div>
         <div class="engine-bar" id="engine-bar">
@@ -263,7 +269,8 @@
           <button class="btn btn-primary btn-lg" id="add-scan-btn" disabled>&#65291; Add Scan</button>
           <button class="btn btn-ghost" id="clear-fields-btn">Clear</button>
         </div>
-        <div class="duplicate-warning hidden" id="duplicate-warning">&#9888; Possible duplicate &mdash; this keg may already be scanned.</div>
+        <p class="field-hint hidden" id="field-hint"></p>
+        <div class="duplicate-warning hidden" id="duplicate-warning">&#9888; Duplicate record &mdash; you have already added this lot number.</div>
         <div class="ocr-raw-wrap hidden">
           <div class="ocr-raw-label ocr-raw-title">Raw OCR text:</div>
           <pre id="ocr-raw-text" class="ocr-raw-text"></pre>
@@ -283,7 +290,7 @@
       <div class="table-header"><h2>Scanned Kegs</h2><span class="table-count" id="table-count">0 kegs</span></div>
       <div class="table-wrap">
         <table id="kegs-table">
-          <thead><tr><th>#</th><th>Status</th><th>Lot Number</th><th>Brand</th><th>Best Before</th><th>Keg Size</th><th>Truck</th><th>Date</th><th>Ship To</th><th>Time</th><th>Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>Status</th><th>Date</th><th>Time</th><th>Truck</th><th>Ship To</th><th>Lot Number</th><th>Brand</th><th>Best Before</th><th>Keg Size</th><th>Actions</th></tr></thead>
           <tbody id="kegs-tbody"></tbody>
         </table>
         <div class="table-empty" id="table-empty"><span class="empty-icon">&#128230;</span><p>No kegs scanned yet.</p></div>
