@@ -2,21 +2,37 @@ const sql = require('mssql');
 
 const config = {
   server:   process.env.SYNAPSE_SERVER,
+  port:     1433,
   database: process.env.SYNAPSE_DB,
   user:     process.env.SYNAPSE_USER,
   password: process.env.SYNAPSE_PASSWORD,
   options: {
-    encrypt: true,
-    trustServerCertificate: false,
-    connectTimeout: 30000,
-    requestTimeout: 30000,
+    encrypt:                true,
+    trustServerCertificate: true,   // required for Synapse Dedicated SQL via tedious
+    enableArithAbort:       true,
+    connectTimeout:         30000,
+    requestTimeout:         30000,
+    cryptoCredentialsDetails: { minVersion: 'TLSv1' },
+  },
+  pool: {
+    max: 3,
+    min: 0,
+    idleTimeoutMillis: 30000,
   },
 };
 
 let pool = null;
 async function getPool() {
-  if (pool && pool.connected) return pool;
-  pool = await sql.connect(config);
+  if (pool) {
+    try {
+      // quick liveness check
+      await pool.request().query('SELECT 1');
+      return pool;
+    } catch (_) {
+      pool = null;
+    }
+  }
+  pool = await new sql.ConnectionPool(config).connect();
   return pool;
 }
 
@@ -72,8 +88,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ ok: true, inserted: kegs.length });
 
   } catch (err) {
-    console.error('Synapse insert error:', err.message);
-    try { await sql.close(); pool = null; } catch (_) {}
-    return res.status(500).json({ error: err.message });
+    console.error('Synapse insert error:', err.message, err.code, err.originalError?.message);
+    pool = null; // reset pool on any error
+    return res.status(500).json({ error: err.message, code: err.code });
   }
 };
