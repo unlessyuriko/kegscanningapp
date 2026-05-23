@@ -348,6 +348,16 @@
         </div>
 
         <div class="settings-section">
+          <div class="settings-section-title">Azure Synapse (via Vercel)</div>
+          <div id="synapse-status" class="settings-status inactive">Not configured</div>
+          <div class="form-group">
+            <label for="vercel-url-input">Vercel Endpoint URL</label>
+            <input type="text" id="vercel-url-input" placeholder="https://your-project.vercel.app/api/insert">
+          </div>
+          <div class="azure-setup-help">Insert scans into <em>stg.KegScanRaw</em> on submit. Deploy the <em>api/insert.js</em> function to Vercel and paste its URL here.</div>
+        </div>
+
+        <div class="settings-section">
           <div class="settings-section-title">PaddleOCR Server</div>
           <div id="paddle-status" class="settings-status inactive">Not configured</div>
           <div class="form-group">

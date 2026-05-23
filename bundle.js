@@ -129,6 +129,7 @@ const Store = (() => {
     geminiEndpoint:'keg_gemini_endpoint',
     openaiKey:     'keg_openai_apikey',
     gcvKey:        'keg_gcv_apikey',
+    vercelUrl:     'keg_vercel_url',
     azureEndpoint: 'keg_azure_endpoint',
     azureKey:     'keg_azure_key',
     session:      'keg_current_session',
@@ -202,6 +203,10 @@ const Store = (() => {
   function getGcvKey()           { return localStorage.getItem(KEYS.gcvKey) || ''; }
   function setGcvKey(k)          { localStorage.setItem(KEYS.gcvKey, k); }
 
+  // Vercel / Synapse endpoint
+  function getVercelUrl()        { return localStorage.getItem(KEYS.vercelUrl) || ''; }
+  function setVercelUrl(u)       { localStorage.setItem(KEYS.vercelUrl, u); }
+
   // Azure AI Vision
   function getAzureEndpoint()   { return localStorage.getItem(KEYS.azureEndpoint) || ''; }
   function setAzureEndpoint(u)  { localStorage.setItem(KEYS.azureEndpoint, u); }
@@ -258,6 +263,7 @@ const Store = (() => {
     getApiKey, setApiKey, getGeminiEndpoint, setGeminiEndpoint,
     getOpenAiKey, setOpenAiKey,
     getGcvKey, setGcvKey,
+    getVercelUrl, setVercelUrl,
     getAzureEndpoint, setAzureEndpoint, getAzureKey, setAzureKey,
     getOcrEngine, setOcrEngine, getPaddleUrl, setPaddleUrl,
     getMsClientId, setMsClientId, getMsTenantId, setMsTenantId,
@@ -2494,6 +2500,50 @@ const SharePoint = (() => {
 })();
 
 
+/* ===== synapse.js ===== */
+const Synapse = (() => {
+
+  async function submitSession(session, kegs, submittedBy) {
+    const url = Store.getVercelUrl();
+    if (!url) throw new Error('Synapse endpoint not configured — add Vercel URL in settings');
+
+    const truck   = (session.truckNumber || '').replace(/\//g, '_');
+    const date    = session.date || new Date().toISOString().slice(0, 10);
+    const batchId = `${truck}_${date}`;
+
+    const resp = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session: {
+          date:        session.date,
+          truckNumber: session.truckNumber,
+          shipTo:      session.shipTo,
+          kegSize:     session.kegSize,
+          type:        session.type || 'keg',
+        },
+        kegs: kegs.map(k => ({
+          lotNumber:  k.lotNumber,
+          brand:      k.brand,
+          bestBefore: k.bestBefore,
+          timestamp:  k.timestamp,
+        })),
+        submittedBy: submittedBy || 'KegScanApp',
+        batchId,
+      }),
+    });
+
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${resp.status}`);
+    }
+    return resp.json();
+  }
+
+  return { submitSession };
+})();
+
+
 /* ===== export.js ===== */
 const Export = (() => {
 
@@ -2520,27 +2570,44 @@ const Export = (() => {
     }
 
     if (!confirm(
-      `Submit ${kegs.length} keg${kegs.length !== 1 ? 's' : ''} for truck ${session.truckNumber}?\n\nData will be saved to SharePoint.`
+      `Submit ${kegs.length} keg${kegs.length !== 1 ? 's' : ''} for truck ${session.truckNumber}?\n\nData will be saved to Azure Synapse and SharePoint.`
     )) return;
 
-    // Ensure signed in before uploading
+    // Get signed-in user name for audit column (best-effort)
+    const submittedBy = document.querySelector('.auth-user-name')?.textContent?.trim() || 'KegScanApp';
+
+    // ── Step 1: Azure Synapse (via Vercel) ─────────────────────────────────
+    if (Store.getVercelUrl()) {
+      _setLoading(true, 'Inserting into Azure Synapse…');
+      try {
+        const { inserted } = await Synapse.submitSession(session, kegs, submittedBy);
+        console.log(`Synapse: ${inserted} rows inserted`);
+      } catch (err) {
+        _setLoading(false);
+        console.error('Synapse submit failed:', err);
+        const proceed = confirm(
+          `Azure Synapse insert failed:\n${err.message}\n\nContinue to SharePoint anyway?`
+        );
+        if (!proceed) return;
+      }
+    }
+
+    // ── Step 2: SharePoint ─────────────────────────────────────────────────
     if (!Auth.isSignedIn()) {
       Scanner._toast('Signing in to Microsoft 365…', 'info');
       const ok = await Auth.login();
-      if (!ok) return;
+      if (!ok) { _setLoading(false); return; }
     }
 
     _setLoading(true, 'Uploading to SharePoint…');
 
     try {
-      const result = await SharePoint.submitSession(session, kegs);
+      await SharePoint.submitSession(session, kegs);
       _setLoading(false);
       Scanner._toast(
-        `${kegs.length} keg${kegs.length !== 1 ? 's' : ''} submitted to SharePoint ✓`,
+        `${kegs.length} keg${kegs.length !== 1 ? 's' : ''} submitted ✓`,
         'success'
       );
-
-      // Navigate back to home screen after brief pause so toast is visible
       setTimeout(() => {
         document.getElementById('back-btn').click();
       }, 1800);
@@ -2548,9 +2615,8 @@ const Export = (() => {
     } catch (err) {
       _setLoading(false);
       console.error('SharePoint submit failed:', err);
-
       const fallback = confirm(
-        `Upload failed:\n${err.message}\n\nDownload Excel file locally instead?`
+        `SharePoint upload failed:\n${err.message}\n\nDownload Excel file locally instead?`
       );
       if (fallback) _downloadExcel(session, kegs);
     }
@@ -2738,6 +2804,7 @@ const Export = (() => {
       document.getElementById('gemini-endpoint-input').value = storedEndpoint;
       document.getElementById('openai-key-input').value      = Store.getOpenAiKey();
       document.getElementById('gcv-key-input').value         = Store.getGcvKey();
+      document.getElementById('vercel-url-input').value      = Store.getVercelUrl();
       document.getElementById('paddle-url-input').value      = Store.getPaddleUrl();
       document.getElementById('azure-endpoint-input').value = Store.getAzureEndpoint();
       document.getElementById('apikey-input').value         = Store.getAzureKey();
@@ -2786,6 +2853,12 @@ const Export = (() => {
         gcvEl.textContent = hasGCV ? 'Configured' : 'Not configured';
         gcvEl.className   = 'settings-status ' + (hasGCV ? 'active' : 'inactive');
       }
+      const synEl = document.getElementById('synapse-status');
+      if (synEl) {
+        const hasVercel = !!Store.getVercelUrl();
+        synEl.textContent = hasVercel ? 'Configured' : 'Not configured';
+        synEl.className   = 'settings-status ' + (hasVercel ? 'active' : 'inactive');
+      }
       const pEl = document.getElementById('paddle-status');
       if (pEl) {
         const paddleUrl = Store.getPaddleUrl();
@@ -2808,6 +2881,7 @@ const Export = (() => {
       Store.setGeminiEndpoint(document.getElementById('gemini-endpoint-input').value.trim());
       Store.setOpenAiKey(document.getElementById('openai-key-input').value.trim());
       Store.setGcvKey(document.getElementById('gcv-key-input').value.trim());
+      Store.setVercelUrl(document.getElementById('vercel-url-input').value.trim());
       Store.setPaddleUrl(document.getElementById('paddle-url-input').value.trim());
       Store.setAzureEndpoint(document.getElementById('azure-endpoint-input').value.trim());
       Store.setAzureKey(document.getElementById('apikey-input').value.trim());
