@@ -1,17 +1,16 @@
 {
+  "version": 2,
+  "builds": [
+    { "src": "api/insert.js", "use": "@vercel/node" },
+    { "src": "api/health.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/health", "dest": "/api/health.js" },
+    { "src": "/api/insert", "dest": "/api/insert.js" }
+  ],
   "functions": {
     "api/insert.js": {
       "maxDuration": 30
     }
-  },
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin",  "value": "https://unlessyuriko.github.io" },
-        { "key": "Access-Control-Allow-Methods", "value": "POST, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
-      ]
-    }
-  ]
+  }
 }
