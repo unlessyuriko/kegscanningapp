@@ -2527,6 +2527,7 @@ const Synapse = (() => {
           brand:      k.brand,
           bestBefore: k.bestBefore,
           timestamp:  k.timestamp,
+          kegSize:    k.kegSize,
         })),
         submittedBy: submittedBy || 'KegScanApp',
         batchId,

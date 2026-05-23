@@ -1,6 +1,9 @@
 const sql        = require('mssql');
 const { ClientSecretCredential } = require('@azure/identity');
 
+// Myanmar Time = UTC+6:30
+function toMMT(date) { return new Date(date.getTime() + 390 * 60 * 1000); }
+
 const credential = new ClientSecretCredential(
   process.env.AZURE_TENANT_ID,
   process.env.AZURE_CLIENT_ID,
@@ -60,7 +63,7 @@ module.exports = async function handler(req, res) {
   }
 
   const rpmType = ((session.type || 'keg')[0].toUpperCase() + (session.type || 'keg').slice(1)).slice(0, 10);
-  const now     = new Date();
+  const now     = toMMT(new Date());
   const by      = (submittedBy || 'KegScanApp').slice(0, 100);
 
   try {
@@ -72,7 +75,7 @@ module.exports = async function handler(req, res) {
         .input('LotNumber',      sql.VarChar(50),  (keg.lotNumber  || '').slice(0, 50)  || null)
         .input('BestBeforeDate', sql.Date,         keg.bestBefore  ? new Date(keg.bestBefore) : null)
         .input('Brand',          sql.VarChar(100), (keg.brand      || '').slice(0, 100) || null)
-        .input('ScanTime',       sql.DateTime2,    keg.timestamp   ? new Date(keg.timestamp)  : now)
+        .input('ScanTime',       sql.DateTime2,    keg.timestamp   ? toMMT(new Date(keg.timestamp)) : now)
         .input('CreatedBy',      sql.VarChar(100), by)
         .input('CreatedDate',    sql.DateTime2,    now)
         .input('ModifiedDate',   sql.DateTime2,    now)
@@ -80,7 +83,7 @@ module.exports = async function handler(req, res) {
         .input('BatchId',        sql.VarChar(100), (batchId        || '').slice(0, 100) || null)
         .input('rpm_type',       sql.VarChar(10),  rpmType)
         .input('truck_number',   sql.NVarChar(10), (session.truckNumber || '').slice(0, 10) || null)
-        .input('uom',            sql.NVarChar(10), (session.kegSize     || '').slice(0, 10) || null)
+        .input('uom',            sql.NVarChar(10), ((keg.kegSize || session.kegSize) || '').slice(0, 10) || null)
         .query(`
           INSERT INTO [stg].[KegScanRaw]
             ([ScanId],[LotNumber],[BestBeforeDate],[Brand],[ScanTime],
